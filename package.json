@@ -16,7 +16,9 @@
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
     "db:stop": "supabase stop",
-    "db:test": "vitest run tests/database.test.ts"
+    "db:test": "vitest run tests/database.test.ts",
+    "local:start": "bash scripts/local/start.sh",
+    "local:stop": "docker compose -p tuktak-test -f scripts/local/compose.yml stop"
   },
   "dependencies": {
     "@fontsource/hind-siliguri": "^5.3.0",
@@ -30,14 +32,16 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@electric-sql/pglite": "^0.5.8",
     "@playwright/test": "^1.63.0",
     "@sparticuz/chromium": "^153.0.0",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "eslint": "^9.39.5",
+    "eslint": "^10.12.0",
     "eslint-config-next": "^16.3.8",
+    "prettier": "^3.9.9",
     "supabase": "^2.119.0",
     "typescript": "^6.0.3",
     "vitest": "^5.0.3"

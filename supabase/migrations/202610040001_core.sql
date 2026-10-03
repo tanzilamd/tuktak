@@ -245,7 +245,7 @@ begin
  when 'phone' then
   update account_private set phone=payload->>'phone',phone_verified_at=null where user_id=me;
  when 'read' then
-  update notifications set read_at=now() where recipient_id=me and (target is null or id=target);
+  update notifications set read_at=now() where recipient_id=me and ((target is null and not payload ? 'ids') or id=target or id::text in (select jsonb_array_elements_text(coalesce(payload->'ids','[]'))));
  when 'delete_account' then
   if payload->>'confirmation'<>'DELETE' then raise exception 'confirmation_required'; end if;
   delete from auth.users where id=me;

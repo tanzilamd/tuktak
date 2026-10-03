@@ -13,7 +13,7 @@ export const commandSchemas={
  react:z.object({id,kind:z.enum(REACTIONS.map(r=>r.key))}),
  follow:z.object({id,enabled:z.boolean()}),block:z.object({id,enabled:z.boolean()}),mute:z.object({id,enabled:z.boolean()}),
  report:z.object({id,target_type:z.enum(["post","comment","user"]),reason:z.enum(REPORT_REASONS),notes:short(500)}),
- profile:profileSchema,phone:z.object({phone:phoneSchema}),read:z.object({id:id.optional()}),
+ profile:profileSchema,phone:z.object({phone:phoneSchema}),read:z.object({id:id.optional(),ids:z.array(id).max(100).optional()}),
  delete_account:z.object({confirmation:z.literal("DELETE")}),
  moderate:z.object({id,decision:z.enum(["dismiss","hide","remove","suspend"]),note:short(500)}),
  unsuspend:z.object({id}),role:z.object({id,role:z.enum(["user","moderator"])})
