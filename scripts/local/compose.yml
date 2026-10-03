@@ -1,0 +1,55 @@
+# Test-only small stack, bound to loopback. Never deploy this compose file.
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_PASSWORD: local-only-password
+    ports: ["127.0.0.1:55432:5432"]
+    volumes: ["./bootstrap.sql:/docker-entrypoint-initdb.d/00-roles.sql:ro"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      retries: 30
+  mail:
+    image: ghcr.io/supabase/mailpit:v1.31.3
+    ports: ["127.0.0.1:55424:8025"]
+  auth:
+    image: ghcr.io/supabase/gotrue:v2.197.0
+    depends_on:
+      db: {condition: service_healthy}
+    ports: ["127.0.0.1:55499:9999"]
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: http://localhost:55421
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:local-only-password@db:5432/postgres
+      GOTRUE_SITE_URL: http://localhost:3000
+      GOTRUE_URI_ALLOW_LIST: http://localhost:3000/auth/callback*,http://localhost:3000/reset-password
+      GOTRUE_DISABLE_SIGNUP: "false"
+      GOTRUE_JWT_SECRET: local-only-jwt-secret-at-least-32-characters-long
+      GOTRUE_JWT_EXP: 3600
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_MAILER_AUTOCONFIRM: "false"
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
+      GOTRUE_SMTP_HOST: mail
+      GOTRUE_SMTP_PORT: 1025
+      GOTRUE_SMTP_ADMIN_EMAIL: hello@tuktak.test
+      GOTRUE_SMTP_SENDER_NAME: Tuktak Local
+      GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
+      GOTRUE_PASSWORD_MIN_LENGTH: 10
+  rest:
+    image: ghcr.io/supabase/postgrest:v16.4
+    depends_on:
+      db: {condition: service_healthy}
+    ports: ["127.0.0.1:55431:3000"]
+    environment:
+      PGRST_DB_URI: postgres://authenticator:local-only-password@db:5432/postgres
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: local-only-jwt-secret-at-least-32-characters-long
+      PGRST_DB_MAX_ROWS: 100
