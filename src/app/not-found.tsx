@@ -1,1 +1,12 @@
-import {Empty} from "@/components/empty";export default function NotFound(){return <Empty emoji="👀" title="এই পেজটা মনে হয় ক্লাস ফাঁকি দিছে।" text="লিংকটা বদলেছে, কনটেন্ট সরেছে অথবা দেখার অনুমতি নেই।" href="/" label="আড্ডায় ফিরে যাই"/>;}
+import { Empty } from "@/components/empty";
+export default function NotFound() {
+  return (
+    <Empty
+      emoji="👀"
+      title="এই পেজটা মনে হয় ক্লাস ফাঁকি দিছে।"
+      text="লিংকটা বদলেছে, কনটেন্ট সরেছে অথবা দেখার অনুমতি নেই।"
+      href="/"
+      label="আড্ডায় ফিরে যাই"
+    />
+  );
+}

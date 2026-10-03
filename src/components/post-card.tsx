@@ -1,14 +1,177 @@
 import Link from "next/link";
-import {MessageCircle,MoreHorizontal,ArrowUpRight} from "lucide-react";
-import {Avatar} from "./avatar";
-import {RichText} from "./rich-text";
-import {Mutation} from "./forms";
-import {REACTIONS,bn} from "@/lib/config";
-import type {Post,Viewer,Profile} from "@/lib/types";
-export function PostCard({post,viewer,detail=false}:{post:Post;viewer:Viewer|null;detail?:boolean}){const mine=viewer?.id===post.author_id;const date=new Date(post.created_at);return <article className="post-card card">
- <div className="post-header"><Link className="post-person" href={`/u/${post.profiles.username}`}><Avatar profile={post.profiles}/><span><b>{post.profiles.display_name}<span className="person-status">{post.profiles.status}</span></b><small>@{post.profiles.username} <span>·</span> <time dateTime={post.created_at}>{new Intl.DateTimeFormat("bn-BD",{month:"short",day:"numeric",timeZone:"Asia/Dhaka"}).format(date)}</time></small></span></Link>
- {viewer&&<details className="post-menu"><summary aria-label="পোস্টের আরও অপশন"><MoreHorizontal size={20}/></summary><div className="menu-panel">{mine?<Mutation action="delete_post" values={{id:post.id}} label="পোস্ট মুছে দিই" confirm="এই পোস্ট আর তার সব উত্তর মুছে যাবে। নিশ্চিত?"/>:<><Link href={`/report?type=post&id=${post.id}`}>রিপোর্ট করি</Link><Mutation action="mute" values={{id:post.author_id,enabled:true}} label="চুপ রাখি (mute)"/><Mutation action="block" values={{id:post.author_id,enabled:true}} label="ব্লক করি" confirm="একে অন্যের পোস্ট আর দেখতে পাবে না। ব্লক করবে?"/></>}</div></details>}</div>
- {post.mood&&<p className="post-mood">{post.mood}</p>}<p className="post-body"><RichText text={post.body}/></p>
- <div className="post-actions"><div className="reactions">{REACTIONS.map(r=>{const count=post.reactions.filter(v=>v.kind===r.key).length;const selected=post.reactions.some(v=>v.kind===r.key&&v.user_id===viewer?.id);const label=`${r.emoji} ${bn(count)}`;return viewer?<Mutation key={r.key} action="react" values={{id:post.id,kind:r.key}} label={label} className={`reaction ${selected?"selected":""}`} pressed={selected} ariaLabel={`${r.label}, ${bn(count)}টি`}><span className="sr-only">{r.label}</span></Mutation>:<Link key={r.key} href="/login" className="reaction-button" aria-label={`${r.label}, ${bn(count)}টি`}>{label}</Link>;})}</div><Link className="reply-link" href={`/post/${post.id}`} aria-label={`${bn(post.comments.length)}টি উত্তর`}><MessageCircle size={17}/><span>{bn(post.comments.length)}</span></Link>{!detail&&<Link className="open-post" href={`/post/${post.id}`} aria-label="পোস্ট খুলে দেখি"><ArrowUpRight size={17}/></Link>}</div>
- </article>;}
-export function PersonCard({profile,viewer,following=false}:{profile:Profile;viewer:Viewer|null;following?:boolean}){return <article className="person-card card"><Link href={`/u/${profile.username}`} className="post-person"><Avatar profile={profile}/><span><b>{profile.display_name} {profile.status}</b><small>@{profile.username}</small></span></Link><p className="muted">{profile.bio||"কথা হবে আড্ডায়।"}</p><div className="person-bottom"><span className="small muted">{profile.hobbies.slice(0,2).join(" · ")}</span>{viewer&&viewer.id!==profile.id?<Mutation action="follow" values={{id:profile.id,enabled:!following}} label={following?"সাথে আছি ✓":"সাথে থাকি +"} pressed={following}/>:<Link className="small" href={`/u/${profile.username}`}>দেখি ↗</Link>}</div></article>;}
+import { MessageCircle, MoreHorizontal, ArrowUpRight } from "lucide-react";
+import { Avatar } from "./avatar";
+import { RichText } from "./rich-text";
+import { Mutation } from "./forms";
+import { REACTIONS, bn } from "@/lib/config";
+import type { Post, Viewer, Profile } from "@/lib/types";
+export function PostCard({
+  post,
+  viewer,
+  detail = false,
+}: {
+  post: Post;
+  viewer: Viewer | null;
+  detail?: boolean;
+}) {
+  const mine = viewer?.id === post.author_id;
+  const date = new Date(post.created_at);
+  return (
+    <article className="post-card card">
+      <div className="post-header">
+        <Link className="post-person" href={`/u/${post.profiles.username}`}>
+          <Avatar profile={post.profiles} />
+          <span>
+            <b>
+              {post.profiles.display_name}
+              <span className="person-status">{post.profiles.status}</span>
+            </b>
+            <small>
+              @{post.profiles.username} <span>·</span>{" "}
+              <time dateTime={post.created_at}>
+                {new Intl.DateTimeFormat("bn-BD", {
+                  month: "short",
+                  day: "numeric",
+                  timeZone: "Asia/Dhaka",
+                }).format(date)}
+              </time>
+            </small>
+          </span>
+        </Link>
+        {viewer && (
+          <details className="post-menu">
+            <summary aria-label="পোস্টের আরও অপশন">
+              <MoreHorizontal size={20} />
+            </summary>
+            <div className="menu-panel">
+              {mine ? (
+                <Mutation
+                  action="delete_post"
+                  values={{ id: post.id }}
+                  label="পোস্ট মুছে দিই"
+                  confirm="এই পোস্ট আর তার সব উত্তর মুছে যাবে। নিশ্চিত?"
+                />
+              ) : (
+                <>
+                  <Link href={`/report?type=post&id=${post.id}`}>
+                    রিপোর্ট করি
+                  </Link>
+                  <Mutation
+                    action="mute"
+                    values={{ id: post.author_id, enabled: true }}
+                    label="চুপ রাখি (mute)"
+                  />
+                  <Mutation
+                    action="block"
+                    values={{ id: post.author_id, enabled: true }}
+                    label="ব্লক করি"
+                    confirm="একে অন্যের পোস্ট আর দেখতে পাবে না। ব্লক করবে?"
+                  />
+                </>
+              )}
+            </div>
+          </details>
+        )}
+      </div>
+      {post.mood && <p className="post-mood">{post.mood}</p>}
+      <p className="post-body">
+        <RichText text={post.body} />
+      </p>
+      <div className="post-actions">
+        <div className="reactions">
+          {REACTIONS.map((r) => {
+            const count =
+              post.reaction_counts?.[r.key] ??
+              post.reactions.filter((v) => v.kind === r.key).length;
+            const selected =
+              post.current_reaction === r.key ||
+              post.reactions.some(
+                (v) => v.kind === r.key && v.user_id === viewer?.id,
+              );
+            const label = `${r.emoji} ${bn(count)}`;
+            return viewer ? (
+              <Mutation
+                key={r.key}
+                action="react"
+                values={{ id: post.id, kind: r.key }}
+                label={label}
+                className={`reaction ${selected ? "selected" : ""}`}
+                pressed={selected}
+                ariaLabel={`${r.label}, ${bn(count)}টি`}
+              >
+                <span className="sr-only">{r.label}</span>
+              </Mutation>
+            ) : (
+              <Link
+                key={r.key}
+                href="/login"
+                className="reaction-button"
+                aria-label={`${r.label}, ${bn(count)}টি`}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+        <Link
+          className="reply-link"
+          href={`/post/${post.id}`}
+          aria-label={`${bn(post.comment_count ?? post.comments.length)}টি উত্তর`}
+        >
+          <MessageCircle size={17} />
+          <span>{bn(post.comment_count ?? post.comments.length)}</span>
+        </Link>
+        {!detail && (
+          <Link
+            className="open-post"
+            href={`/post/${post.id}`}
+            aria-label="পোস্ট খুলে দেখি"
+          >
+            <ArrowUpRight size={17} />
+          </Link>
+        )}
+      </div>
+    </article>
+  );
+}
+export function PersonCard({
+  profile,
+  viewer,
+  following = false,
+}: {
+  profile: Profile;
+  viewer: Viewer | null;
+  following?: boolean;
+}) {
+  return (
+    <article className="person-card card">
+      <Link href={`/u/${profile.username}`} className="post-person">
+        <Avatar profile={profile} />
+        <span>
+          <b>
+            {profile.display_name} {profile.status}
+          </b>
+          <small>@{profile.username}</small>
+        </span>
+      </Link>
+      <p className="muted">{profile.bio || "কথা হবে আড্ডায়।"}</p>
+      <div className="person-bottom">
+        <span className="small muted">
+          {profile.hobbies.slice(0, 2).join(" · ")}
+        </span>
+        {viewer && viewer.id !== profile.id ? (
+          <Mutation
+            action="follow"
+            values={{ id: profile.id, enabled: !following }}
+            label={following ? "সাথে আছি ✓" : "সাথে থাকি +"}
+            pressed={following}
+          />
+        ) : (
+          <Link className="small" href={`/u/${profile.username}`}>
+            দেখি ↗
+          </Link>
+        )}
+      </div>
+    </article>
+  );
+}

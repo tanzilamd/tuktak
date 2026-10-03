@@ -1,1 +1,15 @@
-export default function Loading(){return <div role="status" aria-label="আড্ডা আসছে" className="loading"><span className="sr-only">একটু অপেক্ষা, আড্ডা আসছে…</span>{[1,2,3].map(i=><div className="card skeleton-card" key={i}><div className="skeleton skeleton-avatar"/><div className="skeleton skeleton-line"/><div className="skeleton skeleton-line long"/><div className="skeleton skeleton-line long"/></div>)}</div>;}
+export default function Loading() {
+  return (
+    <div role="status" aria-label="আড্ডা আসছে" className="loading">
+      <span className="sr-only">একটু অপেক্ষা, আড্ডা আসছে…</span>
+      {[1, 2, 3].map((i) => (
+        <div className="card skeleton-card" key={i}>
+          <div className="skeleton skeleton-avatar" />
+          <div className="skeleton skeleton-line" />
+          <div className="skeleton skeleton-line long" />
+          <div className="skeleton skeleton-line long" />
+        </div>
+      ))}
+    </div>
+  );
+}

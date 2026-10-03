@@ -1,8 +1,11 @@
 -- All mutations go through narrowly scoped, authenticated RPCs; no browser service key.
+create function public.has_text(value text) returns boolean language sql immutable set search_path=pg_catalog,pg_temp as $$
+ select char_length(btrim(value,E' \t\n\r\v\f'||chr(160)||chr(5760)||chr(8192)||chr(8193)||chr(8194)||chr(8195)||chr(8196)||chr(8197)||chr(8198)||chr(8199)||chr(8200)||chr(8201)||chr(8202)||chr(8232)||chr(8233)||chr(8239)||chr(8287)||chr(12288)||chr(65279)))>0
+$$;
 create table public.profiles (
  id uuid primary key references auth.users(id) on delete cascade,
  username text not null unique check(username = lower(username) and username ~ '^[a-z0-9_]{3,20}$' and username not in ('admin','api','login','signup','settings','support','moderator','system','discover','notifications','onboarding','auth','post','tag','u','help','tuktak','www')),
- display_name text not null check(char_length(btrim(display_name)) between 1 and 40),
+ display_name text not null check(char_length(display_name)<=40 and public.has_text(display_name)),
  bio text not null default '' check(char_length(bio)<=100),
  education text not null default '' check(education in ('','স্কুলে পড়ি','কলেজে পড়ি','মাদ্রাসায় পড়ি','বিশ্ববিদ্যালয়ে পড়ি','ভর্তি প্রস্তুতি নিচ্ছি','গ্যাপ ইয়ার','পড়াশোনায় বিরতিতে','পড়াশোনা শেষ','বর্তমানে পড়াশোনা করছি না','অন্যান্য')),
  -- Only a deliberately published institution is stored here. Hidden values live in account_private.
@@ -30,14 +33,14 @@ create table public.user_roles (
 );
 create table public.posts (
  id uuid primary key default gen_random_uuid(), author_id uuid not null references public.profiles on delete cascade,
- body text not null check(char_length(body)<=240 and char_length(btrim(body,E' \t\n\r'))>0),
+ body text not null check(char_length(body)<=240 and public.has_text(body)),
  mood text check(mood in ('😄 জমে গেছে','😂 হাসি পাচ্ছে','😭 আর পারি না','😵‍💫 মাথা শেষ','😌 শান্তি','😤 বিরক্ত','🥹 ইমোশনাল','🤔 ভাবছি','🔥 উত্তেজিত','🎲 র‍্যান্ডম')),
  hidden boolean not null default false, created_at timestamptz not null default now()
 );
 create table public.comments (
  id uuid primary key default gen_random_uuid(), post_id uuid not null references public.posts on delete cascade,
  author_id uuid not null references public.profiles on delete cascade,
- body text not null check(char_length(body)<=180 and char_length(btrim(body,E' \t\n\r'))>0),
+ body text not null check(char_length(body)<=180 and public.has_text(body)),
  hidden boolean not null default false, created_at timestamptz not null default now()
 );
 create table public.reactions (
@@ -171,12 +174,24 @@ begin
  if exists(select 1 from user_roles where user_id=me and suspended) and action not in ('delete_account') then raise exception 'account_suspended'; end if;
  perform pg_advisory_xact_lock(hashtextextended(me::text,0));
  if payload ? 'id' then target:=(payload->>'id')::uuid; end if;
+ -- Serialize bilateral interactions with block changes, including concurrent callers.
+ if action in ('follow','block','mute') then owner_id:=target;
+ elsif action in ('comment','react') then select author_id into owner_id from posts where id=target;
+ elsif action='report' then
+  if payload->>'target_type'='user' then owner_id:=target;
+  elsif payload->>'target_type'='post' then select author_id into owner_id from posts where id=target;
+  elsif payload->>'target_type'='comment' then select author_id into owner_id from comments where id=target; end if;
+ end if;
+ if owner_id is not null and owner_id<>me then
+  perform pg_advisory_xact_lock(hashtextextended('pair:'||least(me::text,owner_id::text)||':'||greatest(me::text,owner_id::text),0));
+ end if;
+
  case action
  when 'post' then
   perform take_rate('post',10,btrim(payload->>'body'));
   insert into posts(author_id,body,mood) values(me,btrim(payload->>'body'),nullif(payload->>'mood','')) returning id into new_id;
   -- At most five distinct tags per post; Unicode letters/numbers are supported.
-  select array_agg(t) into tags from (select distinct lower(m[1]) t from regexp_matches(payload->>'body','(?:^|[[:space:]])#([a-zA-Z0-9_ঀ-৿]{1,40})','g') m limit 5) q;
+  select array_agg(t) into tags from (select distinct lower(m[1]) t from regexp_matches(payload->>'body','(?:^|[[:space:]])#([a-zA-Z0-9_ঀ-ঃঅ-ঌএঐও-নপ-রলশ-হ়-ৄেৈো-ৎৗড়ঢ়য়-ৣ০-৯ৰৱ৴-৹ৼ৾]{1,40})','g') m limit 5) q;
   foreach entry in array coalesce(tags,'{}') loop
    insert into hashtags(tag) values(entry) on conflict do nothing;
    insert into post_hashtags values(new_id,entry);
@@ -205,7 +220,7 @@ begin
   end if;
  when 'follow' then
   if target=me then raise exception 'self_follow'; end if;
-  if not visible_user(target) then raise exception 'not_found'; end if;
+  if coalesce((payload->>'enabled')::boolean,true) and not visible_user(target) then raise exception 'not_found'; end if;
   perform take_rate('follow',40);
   if coalesce((payload->>'enabled')::boolean,true) then
    insert into follows values(me,target,now()) on conflict do nothing;
@@ -223,7 +238,7 @@ begin
    delete from notifications where (recipient_id=me and actor_id=target) or (recipient_id=target and actor_id=me);
   else delete from blocks where blocker_id=me and blocked_id=target; end if;
  when 'mute' then
-  if target=me or not visible_user(target) then raise exception 'not_found'; end if;
+  if target=me or (coalesce((payload->>'enabled')::boolean,true) and not visible_user(target)) then raise exception 'not_found'; end if;
   perform take_rate('mute',40);
   if coalesce((payload->>'enabled')::boolean,true) then insert into mutes values(me,target,now()) on conflict do nothing;
   else delete from mutes where muter_id=me and muted_id=target; end if;
@@ -289,7 +304,7 @@ begin
  case r.target_type when 'post' then (select body from posts where id=r.target_id) when 'comment' then (select body from comments where id=r.target_id) else (select display_name||' (@'||username||')' from profiles where id=r.target_id) end content
  from reports r where status='open' order by created_at limit 100) q),'[]'),
  'suspended',coalesce((select jsonb_agg(q) from (select p.id,p.username,p.display_name from profiles p join user_roles ur on ur.user_id=p.id where ur.suspended limit 100) q),'[]'),
- 'audit',coalesce((select jsonb_agg(q) from (select action,target_type,target_id,note,created_at from moderation_actions order by created_at desc limit 50) q),'[]'));
+ 'audit',coalesce((select jsonb_agg(q) from (select id,action,target_type,target_id,note,created_at from moderation_actions order by created_at desc limit 50) q),'[]'));
 end $$;
 revoke execute on all functions in schema public from public,anon,authenticated;
 grant execute on function public.is_staff(),public.is_muted(uuid),public.visible_user(uuid),public.visible_post(uuid) to anon,authenticated;
@@ -310,3 +325,21 @@ end $$;
 revoke execute on function public.popular_topics(),public.safety_accounts(text) from public;
 grant execute on function public.popular_topics() to anon,authenticated;
 grant execute on function public.safety_accounts(text) to authenticated;
+
+create function public.admin_accounts(query text default '') returns table(id uuid,username text,display_name text,role text,suspended boolean) language plpgsql stable security definer set search_path=public,pg_temp as $$
+begin
+ if not exists(select 1 from user_roles ur where ur.user_id=auth.uid() and ur.role='admin' and not ur.suspended) then raise exception 'forbidden';end if;
+ return query select p.id,p.username,p.display_name,r.role,r.suspended from profiles p join user_roles r on r.user_id=p.id where p.username like '%'||left(lower(query),60)||'%' order by p.username limit 100;
+end $$;
+revoke execute on function public.admin_accounts(text) from public;
+grant execute on function public.admin_accounts(text) to authenticated;
+
+create function public.post_stats(ids uuid[]) returns jsonb language sql stable security definer set search_path=public,pg_temp as $$
+ select coalesce(jsonb_object_agg(p.id::text,jsonb_build_object(
+  'reaction_counts',coalesce((select jsonb_object_agg(kind,total) from (select r.kind,count(*) total from reactions r where r.post_id=p.id and visible_user(r.user_id) group by r.kind) q),'{}'),
+  'current_reaction',(select kind from reactions r where r.post_id=p.id and r.user_id=auth.uid()),
+  'comment_count',(select count(*) from comments c where c.post_id=p.id and not c.hidden and visible_user(c.author_id) and not is_muted(c.author_id))
+ )),'{}') from posts p where p.id=any(ids[1:100]) and visible_post(p.id)
+$$;
+revoke execute on function public.post_stats(uuid[]) from public;
+grant execute on function public.post_stats(uuid[]) to anon,authenticated;

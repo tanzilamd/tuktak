@@ -7,7 +7,7 @@ services:
     ports: ["127.0.0.1:55432:5432"]
     volumes: ["./bootstrap.sql:/docker-entrypoint-initdb.d/00-roles.sql:ro"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres"]
       interval: 2s
       retries: 30
   mail:
@@ -16,7 +16,7 @@ services:
   auth:
     image: ghcr.io/supabase/gotrue:v2.197.0
     depends_on:
-      db: {condition: service_healthy}
+      db: { condition: service_healthy }
     ports: ["127.0.0.1:55499:9999"]
     environment:
       GOTRUE_API_HOST: 0.0.0.0
@@ -42,10 +42,11 @@ services:
       GOTRUE_SMTP_SENDER_NAME: Tuktak Local
       GOTRUE_SECURITY_REFRESH_TOKEN_ROTATION_ENABLED: "true"
       GOTRUE_PASSWORD_MIN_LENGTH: 10
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: 100
   rest:
     image: ghcr.io/supabase/postgrest:v16.4
     depends_on:
-      db: {condition: service_healthy}
+      db: { condition: service_healthy }
     ports: ["127.0.0.1:55431:3000"]
     environment:
       PGRST_DB_URI: postgres://authenticator:local-only-password@db:5432/postgres

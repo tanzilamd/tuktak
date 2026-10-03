@@ -5,7 +5,7 @@ mkdir -p .local
 # This stack is exclusively for fictional local data. It never connects to a hosted DB.
 docker compose -p tuktak-test -f scripts/local/compose.yml up -d db mail
 for _ in $(seq 1 30); do
- if docker exec tuktak-test-db-1 pg_isready -U postgres >/dev/null 2>&1; then break; fi
+ if docker exec tuktak-test-db-1 pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then break; fi
  sleep 1
 done
 if ! docker exec tuktak-test-db-1 psql -U postgres -Atc "select 1 from pg_roles where rolname='supabase_auth_admin'" | rg -q 1; then

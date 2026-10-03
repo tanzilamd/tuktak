@@ -1,7 +1,83 @@
 import Link from "next/link";
-import {Search} from "lucide-react";
-import {people,viewer,feed,topics,relationship} from "@/lib/data";
-import {PersonCard,PostCard} from "@/components/post-card";
-import {Empty} from "@/components/empty";
-export const metadata={title:"খুঁজে দেখি"};
-export default async function Page({searchParams}:{searchParams:Promise<{q?:string}>}){const {q=""}=await searchParams;const [v,users,posts,tags]=await Promise.all([viewer(),people(q.slice(0,60)),feed({popular:true}),topics()]);return <><div className="page-top"><div><span className="eyebrow">চেনা-অচেনা, একই আড্ডা</span><h1>খুঁজে দেখি 🔎</h1></div></div><form className="search-form" action="/discover"><Search size={20}/><label className="sr-only" htmlFor="search">মানুষ, প্রতিষ্ঠান বা শখ খুঁজি</label><input name="q" id="search" defaultValue={q} maxLength={60} placeholder="নাম, @username, প্রতিষ্ঠান, শখ…"/><button className="button button-small">খুঁজি</button></form><h2 className="section-heading">{q?`“${q}” দিয়ে খুঁজে পেলাম`:"নতুন মানুষ, নতুন গল্প"}</h2><div className="people-grid">{await Promise.all(users.map(async p=><PersonCard key={p.id} profile={p} viewer={v} following={await relationship(p.id)}/>))}</div>{!users.length&&<Empty emoji="🔎" title="এ নামে কাউকে পেলাম না।" text="অন্য নাম বা শখ দিয়ে খুঁজে দেখো। ব্যক্তিগত তথ্য এখানে খোঁজা যায় না।"/>}<h2 className="section-heading">আলোচনায় ✦</h2><div className="tag-cloud">{tags.map(t=><Link className="chip" key={t.tag} href={`/tag/${encodeURIComponent(t.tag)}`}>#{t.tag}</Link>)}</div><h2 className="section-heading">আড্ডা জমেছে এখানে</h2><div className="post-list">{posts.map(p=><PostCard key={p.id} post={p} viewer={v}/>)}</div></>;}
+import { Search } from "lucide-react";
+import { people, viewer, feed, topics, relationship } from "@/lib/data";
+import { PersonCard, PostCard } from "@/components/post-card";
+import { Empty } from "@/components/empty";
+export const metadata = { title: "খুঁজে দেখি" };
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const { q = "" } = await searchParams;
+  const [v, users, posts, tags] = await Promise.all([
+    viewer(),
+    people(q.slice(0, 60)),
+    feed({ popular: true }),
+    topics(),
+  ]);
+  return (
+    <>
+      <div className="page-top">
+        <div>
+          <span className="eyebrow">চেনা-অচেনা, একই আড্ডা</span>
+          <h1>খুঁজে দেখি 🔎</h1>
+        </div>
+      </div>
+      <form className="search-form" action="/discover">
+        <Search size={20} />
+        <label className="sr-only" htmlFor="search">
+          মানুষ, প্রতিষ্ঠান বা শখ খুঁজি
+        </label>
+        <input
+          name="q"
+          id="search"
+          defaultValue={q}
+          maxLength={60}
+          placeholder="নাম, @username, প্রতিষ্ঠান, শখ…"
+        />
+        <button className="button button-small">খুঁজি</button>
+      </form>
+      <h2 className="section-heading">
+        {q ? `“${q}” দিয়ে খুঁজে পেলাম` : "নতুন মানুষ, নতুন গল্প"}
+      </h2>
+      <div className="people-grid">
+        {await Promise.all(
+          users.map(async (p) => (
+            <PersonCard
+              key={p.id}
+              profile={p}
+              viewer={v}
+              following={await relationship(p.id)}
+            />
+          )),
+        )}
+      </div>
+      {!users.length && (
+        <Empty
+          emoji="🔎"
+          title="এ নামে কাউকে পেলাম না।"
+          text="অন্য নাম বা শখ দিয়ে খুঁজে দেখো। ব্যক্তিগত তথ্য এখানে খোঁজা যায় না।"
+        />
+      )}
+      <h2 className="section-heading">আলোচনায় ✦</h2>
+      <div className="tag-cloud">
+        {tags.map((t) => (
+          <Link
+            className="chip"
+            key={t.tag}
+            href={`/tag/${encodeURIComponent(t.tag)}`}
+          >
+            #{t.tag}
+          </Link>
+        ))}
+      </div>
+      <h2 className="section-heading">আড্ডা জমেছে এখানে</h2>
+      <div className="post-list">
+        {posts.map((p) => (
+          <PostCard key={p.id} post={p} viewer={v} />
+        ))}
+      </div>
+    </>
+  );
+}

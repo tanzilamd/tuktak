@@ -1,3 +1,86 @@
-import Link from "next/link";import {moderationQueue,requireViewer} from "@/lib/data";import {Mutation} from "@/components/forms";import {Empty} from "@/components/empty";
-export const metadata={title:"আড্ডা সামলাই",robots:{index:false}};
-export default async function Page(){const [q,v]=await Promise.all([moderationQueue(),requireViewer()]);return <><div className="page-top"><h1>আড্ডা সামলাই 🛡️</h1>{v.role==="admin"&&<Link href="/admin" className="button button-small">দল পরিচালনা</Link>}</div>{q.reports.map(r=><article className="card content-card" key={r.id}><span className="eyebrow">{r.target_type} · {r.reason}</span><blockquote>{r.content||"কনটেন্টটি আর নেই।"}</blockquote><p>{r.notes}</p><div className="moderation-controls">{["dismiss",...(r.target_type==="user"?[]:["hide","remove"]),"suspend"].map((decision,i)=><Mutation key={decision} action="moderate" values={{id:r.id,decision,note:""}} label={decision==="dismiss"?"বন্ধ করি":decision==="hide"?"লুকাই":decision==="remove"?"মুছে দিই":"স্থগিত করি"} confirm={i>0?"এই moderation সিদ্ধান্ত প্রয়োগ করবে?":undefined}/>)}</div></article>)}{!q.reports.length&&<Empty emoji="🛡️" title="সব শান্ত, আপাতত।" text="নতুন রিপোর্ট এলে এখানে আসবে।"/>}<section className="card content-card"><h2>স্থগিত অ্যাকাউন্ট</h2>{q.suspended.map(p=><div className="safety-row" key={p.id}><span>{p.display_name} @{p.username}</span><Mutation action="unsuspend" values={{id:p.id}} label="ফিরিয়ে আনি"/></div>)}{!q.suspended.length&&<p className="muted">কেউ নেই।</p>}</section><section className="card content-card"><h2>সাম্প্রতিক audit</h2>{q.audit.map((a,i)=><p className="audit-row" key={i}>{a.action} · {a.target_type} <small>{new Date(a.created_at).toISOString()}</small></p>)}</section></>;}
+import Link from "next/link";
+import { moderationQueue, requireViewer } from "@/lib/data";
+import { Mutation } from "@/components/forms";
+import { Empty } from "@/components/empty";
+export const metadata = { title: "আড্ডা সামলাই", robots: { index: false } };
+export default async function Page() {
+  const [q, v] = await Promise.all([moderationQueue(), requireViewer()]);
+  return (
+    <>
+      <div className="page-top">
+        <h1>আড্ডা সামলাই 🛡️</h1>
+        {v.role === "admin" && (
+          <Link href="/admin" className="button button-small">
+            দল পরিচালনা
+          </Link>
+        )}
+      </div>
+      {q.reports.map((r) => (
+        <article className="card content-card" key={r.id}>
+          <span className="eyebrow">
+            {r.target_type} · {r.reason}
+          </span>
+          <blockquote>{r.content || "কনটেন্টটি আর নেই।"}</blockquote>
+          <p>{r.notes}</p>
+          <div className="moderation-controls">
+            {[
+              "dismiss",
+              ...(r.target_type === "user" ? [] : ["hide", "remove"]),
+              "suspend",
+            ].map((decision, i) => (
+              <Mutation
+                key={decision}
+                action="moderate"
+                values={{ id: r.id, decision, note: "" }}
+                label={
+                  decision === "dismiss"
+                    ? "বন্ধ করি"
+                    : decision === "hide"
+                      ? "লুকাই"
+                      : decision === "remove"
+                        ? "মুছে দিই"
+                        : "স্থগিত করি"
+                }
+                confirm={
+                  i > 0 ? "এই moderation সিদ্ধান্ত প্রয়োগ করবে?" : undefined
+                }
+              />
+            ))}
+          </div>
+        </article>
+      ))}
+      {!q.reports.length && (
+        <Empty
+          emoji="🛡️"
+          title="সব শান্ত, আপাতত।"
+          text="নতুন রিপোর্ট এলে এখানে আসবে।"
+        />
+      )}
+      <section className="card content-card">
+        <h2>স্থগিত অ্যাকাউন্ট</h2>
+        {q.suspended.map((p) => (
+          <div className="safety-row" key={p.id}>
+            <span>
+              {p.display_name} @{p.username}
+            </span>
+            <Mutation
+              action="unsuspend"
+              values={{ id: p.id }}
+              label="ফিরিয়ে আনি"
+            />
+          </div>
+        ))}
+        {!q.suspended.length && <p className="muted">কেউ নেই।</p>}
+      </section>
+      <section className="card content-card">
+        <h2>সাম্প্রতিক audit</h2>
+        {q.audit.map((a) => (
+          <p className="audit-row" key={a.id}>
+            {a.action} · {a.target_type}{" "}
+            <small>{new Date(a.created_at).toISOString()}</small>
+          </p>
+        ))}
+      </section>
+    </>
+  );
+}
