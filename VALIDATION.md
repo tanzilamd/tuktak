@@ -10,6 +10,8 @@ The new real Auth browser assertion failed before the migration (`phone_in_metad
 
 Current checks passed: formatting, lint, typecheck, 45 automated tests, 33 database/RLS/migration tests, all 14 Playwright tests including three axe checks, production build and production-dependency audit (zero vulnerabilities). Local tests use only the fixed disposable stack. Hosted migration/deployment evidence is reported separately after execution; these results alone do not prove deployment.
 
+Production migration `20261004000300` was then applied atomically and appended to native history; all three stored migration sources match the committed files. Transaction-local assertions verified unchanged application data and all non-metadata Auth fields, including credentials and confirmation. The production catalog exactly matches the full chain (15 tables, 83 columns, 27 indexes, 14 policies, 15 functions and two Auth triggers); RLS and direct-write restrictions remain intact. Anonymous phone access, missing/unverified identities and forged staff/admin claims were rejected in a read-only audit. A rolled-back metadata update on a complete account with an `auth` search path verified phone stripping; no probe markers remain. The managed owner role cannot assume `supabase_auth_admin`, so this hosted probe used `postgres`; real GoTrue role execution was covered locally. No production fixture, reset, reseed, account repair/deletion or role-grant change occurred. Existing access tokens can retain old claims until refreshed; sign out/in when checking session privacy.
+
 Validation performed in this cloud workspace on 4 October 2026 (Asia/Dhaka), including the targeted pre-production fixes. No production credentials were provided.
 
 ## Passed
