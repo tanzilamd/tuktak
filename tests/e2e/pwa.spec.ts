@@ -5,6 +5,17 @@ async function android(page: Page) {
     Object.defineProperty(navigator, "userAgentData", {
       value: { platform: "Android", mobile: false },
     });
+    const state = window as typeof window & { pwaProviderReady?: boolean };
+    state.pwaProviderReady = false;
+    const register = navigator.serviceWorker.register.bind(
+      navigator.serviceWorker,
+    );
+    navigator.serviceWorker.register = (...args) => {
+      // The provider attaches install listeners before registering its worker.
+      // Forward the real registration; only the test records initialization.
+      state.pwaProviderReady = true;
+      return register(...args);
+    };
   });
 }
 async function opportunity(
@@ -12,6 +23,12 @@ async function opportunity(
   outcome: "accepted" | "dismissed" = "dismissed",
   complete = false,
 ) {
+  // A streamed document can load before its client effect attaches listeners.
+  await page.waitForFunction(
+    () =>
+      (window as typeof window & { pwaProviderReady?: boolean })
+        .pwaProviderReady !== false,
+  );
   await page.evaluate(
     ({ outcome, complete }) => {
       const state = window as typeof window & { pwaPrompts?: number };

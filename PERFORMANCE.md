@@ -36,7 +36,7 @@ Existing production data was protected with a private baseline before writes. On
 2. Request-scoped topics deduplication.
 3. `vercel.json` pins the existing function to Mumbai (`bom1`), colocated with Supabase. This is a single-region deployment configuration, not an infrastructure purchase. Deprecated Next.js `preferredRegion` exports were not used.
 
-Before/after tables and exact deployment evidence are appended after production validation. Region and request-cache effects are deployed together; the comparison cannot assign a precise portion of improvement to each change.
+The hosted before/after results and deployment evidence follow below. Region and request-cache effects are deployed together; the comparison cannot assign a precise portion of improvement to each change.
 
 ## Lightweight monitoring baseline
 
@@ -91,3 +91,41 @@ Times are milliseconds; medians of three samples unless noted. DB time is not is
 Separate five-sample TLS-verified probes: generic static offline document median **314 ms**; `/api/health` (one bounded DB read) median **603 ms**, range **537–1,035 ms**. Different endpoint/protocol conditions mean their difference is not a precise DB network measurement.
 
 For mutations, optimistic UI is already immediate in regression tests; canonical response time above is the server-confirmation wait, not a claim that the UI waits that long to show a draft/reaction. Notification/profile Server Action streams can remain open after useful content, so local timings use response headers plus confirmed controls instead of assuming stream completion equals perceived latency.
+
+## Hosted comparison and deployment evidence
+
+Implementation commit `97223174429257e7a918c7e641b0e7e65d6644e9` was pushed to `main`. Vercel commit status and Production deployment `6847379492` report success. Canonical `/api/health` returns 200/ok and headers changed from `cle1::iad1` to **`cle1::bom1`**. No paid plan or provider purchase was made.
+
+The following are same-method observed medians, not guaranteed improvements for every user. Three browser read samples were repeated after deployment; the first deployed-write series ran near other read/PWA verification, so a second three-sample series was collected. All six after-write observations are retained below rather than selecting only the fastest series. Physical Bangladesh/network latency remains unmeasured.
+
+| Flow               | Before ms | After ms | Change | After slowest request / count          | Confidence                                         |
+| ------------------ | --------: | -------: | -----: | -------------------------------------- | -------------------------------------------------- |
+| Home guest         |       962 |     1523 | +58.3% | document ~1334; 22–37 browser requests | 3 samples; TTFB 865 → 1074; proxy path only        |
+| Home signed in     |      2739 |     1702 | -37.9% | document ~1556; 26–33 browser requests | 3 samples; TTFB 2669 → 1348; proxy path only       |
+| Notifications      |      1770 |      923 | -47.9% | document ~895; 27–29 browser requests  | 3 samples; TTFB 1720 → 872; proxy path only        |
+| Profile            |      2549 |     1086 | -57.4% | document ~1055; 25–28 browser requests | 3 samples; TTFB 1731 → 895; proxy path only        |
+| Discover           |      1729 |     1870 |  +8.2% | document ~1254; 28–32 browser requests | 3 samples; TTFB 1365 → 1043; proxy path only       |
+| Search             |      2142 |     1637 | -23.6% | document ~1056; 27–31 browser requests | 3 samples; TTFB 1348 → 849; proxy path only        |
+| Hashtag            |      1785 |      921 | -48.4% | document ~892; 25–32 browser requests  | 3 samples; TTFB 1744 → 874; proxy path only        |
+| Discussion         |      1842 |     1096 | -40.5% | document ~1078; 24–32 browser requests | 3 samples; TTFB 1467 → 949; proxy path only        |
+| Feed API all       |      2123 |      724 | -65.9% | 1 explicit API call; private/no-store  | 3 canonical JSON samples; proxy path only          |
+| Feed API following |      1564 |      862 | -44.9% | 1 explicit API call; private/no-store  | 3 canonical JSON samples; proxy path only          |
+| Create post        |      1098 |     1016 |  -7.5% | social API; 1 explicit mutation        | 3 before / 6 after; owned fixtures, canonical JSON |
+| Reaction add       |       835 |     1190 | +42.5% | social API; 1 explicit mutation        | 3 before / 6 after; owned fixtures, canonical JSON |
+| Reaction switch    |       917 |     1222 | +33.3% | social API; 1 explicit mutation        | 3 before / 6 after; owned fixtures, canonical JSON |
+| Reaction remove    |       893 |     1018 | +14.0% | social API; 1 explicit mutation        | 3 before / 6 after; owned fixtures, canonical JSON |
+| Reply              |       875 |      844 |  -3.5% | social API; 1 explicit mutation        | 3 before / 6 after; owned fixtures, canonical JSON |
+| Delete own reply   |       913 |     1162 | +27.3% | social API; 1 explicit mutation        | 3 before / 6 after; owned fixtures, canonical JSON |
+| Delete own post    |       611 |      960 | +57.1% | social API; 1 explicit mutation        | 3 before / 6 after; owned fixtures, canonical JSON |
+
+Authenticated Home, Profile, Notifications, hashtag/discussion and both feed API reads improved in this sample. **Guest Home, Discover useful-content time, and several write confirmations did not improve.** Discover TTFB improved even though useful-content median increased, illustrating client/streaming/network variability. Do not describe this as a universal speed-up. Mumbai is retained for the measured multi-round-trip read benefit and database colocation, with the explicit tradeoff that the cloud proxy is farther from the function. A Bangladesh phone/network read-and-write sample is the next check before further latency changes or any paid-infrastructure recommendation.
+
+After-tab observations: following selection 34 ms with three request starts (including prefetch), then warm following 30 ms / zero requests; all selections 58 and 63 ms / zero requests. Prefetch may complete before selection, so this is not a guarantee of a 34 ms uncached fetch. Same five-sample health protocol: median **603 → 514 ms**, range after **361–531 ms**; generic static document **314 → 263 ms**, showing that ambient network conditions also varied. A first post-deployment health request took about 1.9 seconds upstream; cold-start execution cannot be separated from that request using the available evidence.
+
+Live checks passed: manifest/canonical URLs/icons/worker headers and Chromium native installability criteria (no errors), actual worker offline font/fallback/reconnect, safe cache contents/exclusions, designated login and Auth utility routes, simulated Android phone/tablet/client-hints/iPhone/iPad/desktop/standalone behavior, successful-install/dismiss persistence and eight width/theme install-card axe checks. Headless Chromium emitted **zero real install opportunities**; native OS install/standalone launch is not claimed. No existing production profile/private/read/follow state changed; before/after fingerprints match and temporary owned social fixtures were cleaned.
+
+## Recommendation and remaining checks
+
+**Infrastructure recommendation: No paid upgrade needed for the presently measured problem.** The measured indexed SQL times, small DB/connection snapshot, substantial feed-read gains from a configuration change, and mixed remote write/network results do not justify paying for Supabase compute, Vercel runtime or both. Neither provider has a demonstrated current CPU/RAM/connection/usage bottleneck in this audit. This is a bounded recommendation, not a future capacity guarantee. Paid plans would require new evidence of sustained pressure/limits; they do not automatically solve client distance or sequential application work.
+
+Remaining post-launch work: physical Android/iPhone/iPad install checks, Bangladesh mobile-network samples for reads and writes, slow/fast-device hydration traces if guest/Discover delay persists, and a routine dashboard/usage/backup/mail-health review. Do not add Redis, broad caching or paid monitoring to resolve an unmeasured bottleneck.
