@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { db } from "./supabase";
 import { demoPosts, demoProfiles } from "./demo";
 import type { Profile, Post, PostStats, Comment, Viewer } from "./types";
+import type { Notification } from "./notifications";
 type PostRow = Omit<Post, keyof PostStats>;
 function popularPosts(posts: Post[]) {
   const total = (post: Post) =>
@@ -278,25 +279,30 @@ export async function safetyList(kind: "blocks" | "mutes") {
     "id" | "username" | "display_name" | "accent"
   >[];
 }
-export async function inbox() {
+export const unreadNotificationCount = cache(async () => {
+  const v = await viewer();
+  if (!v || v.suspended) return 0;
+  const client = (await db())!;
+  const { data, error } = await client
+    .from("notifications")
+    .select("id")
+    .eq("recipient_id", v.id)
+    .is("read_at", null)
+    .limit(100);
+  return checked(data, error).length;
+});
+export async function inbox(): Promise<Notification[]> {
   const v = await requireViewer();
   const client = (await db())!;
   const { data, error } = await client
     .from("notifications")
     .select(
-      `id,kind,post_id,read_at,created_at,profiles!notifications_actor_id_fkey(${PUBLIC_PROFILE})`,
+      `id,kind,post_id,comment_id,read_at,created_at,profiles!notifications_actor_id_fkey(${PUBLIC_PROFILE})`,
     )
     .eq("recipient_id", v.id)
     .order("created_at", { ascending: false })
     .limit(100);
-  return checked(data, error) as unknown as {
-    id: string;
-    kind: string;
-    post_id: string | null;
-    read_at: string | null;
-    created_at: string;
-    profiles: Profile;
-  }[];
+  return checked(data, error) as unknown as Notification[];
 }
 export async function moderationQueue() {
   const v = await requireViewer();

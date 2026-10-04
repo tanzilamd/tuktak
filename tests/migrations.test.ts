@@ -44,10 +44,12 @@ async function versions() {
 }
 describe("ordered migration chain", () => {
   it("upgrades GoTrue metadata privacy without changing complete or manually orphaned accounts", async () => {
-    const prior = migrations.slice(0, -1);
-    expect(migrations.at(-1)?.name).toBe(
-      "20261004000300_auth_phone_privacy.sql",
+    const privacyIndex = migrations.findIndex(
+      (m) => m.name === "20261004000300_auth_phone_privacy.sql",
     );
+    expect(privacyIndex).toBeGreaterThan(0);
+    const prior = migrations.slice(0, privacyIndex);
+    const privacyChain = migrations.slice(0, privacyIndex + 1);
     await db.exec(migrationSQL(prior));
     await seedAccount();
     const orphan = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -79,8 +81,8 @@ describe("ordered migration chain", () => {
         "select row_to_json(p) profile,row_to_json(a) private,row_to_json(r) role from profiles p join account_private a on a.user_id=p.id join user_roles r on r.user_id=p.id",
       )
     ).rows;
-    await db.exec(migrationSQL(migrations));
-    expect(await versions()).toEqual(migrations.map((m) => m.version));
+    await db.exec(migrationSQL(privacyChain));
+    expect(await versions()).toEqual(privacyChain.map((m) => m.version));
     expect(
       (
         await db.query(
@@ -121,6 +123,71 @@ describe("ordered migration chain", () => {
         )
       ).rows[0],
     ).toEqual({ anon: false, authenticated: false });
+    await db.exec(migrationSQL(privacyChain));
+    expect(await versions()).toEqual(privacyChain.map((m) => m.version));
+  });
+  it("upgrades status and numeric batches without changing existing profiles or accents", async () => {
+    const launchIndex = migrations.findIndex(
+      (m) => m.name === "20261005000100_launch_polish.sql",
+    );
+    await db.exec(migrationSQL(migrations.slice(0, launchIndex)));
+    await seedAccount();
+    await db.query(
+      "update profiles set status='🌿',accent='berry',ssc_batch='2025' where id=$1",
+      [actor],
+    );
+    const before = (
+      await db.query("select row_to_json(p) profile from profiles p")
+    ).rows;
+    await db.exec(migrationSQL(migrations));
+    expect(
+      (await db.query("select row_to_json(p) profile from profiles p")).rows,
+    ).toEqual(before);
+    await db.query(
+      "update profiles set status=$2,ssc_batch=E'\t২০২৬\n',hsc_batch='20২৮' where id=$1",
+      [actor, "🙂".repeat(40)],
+    );
+    expect(
+      (await db.query("select status,ssc_batch,hsc_batch,accent from profiles"))
+        .rows[0],
+    ).toEqual({
+      status: "🙂".repeat(40),
+      ssc_batch: "2026",
+      hsc_batch: "2028",
+      accent: "berry",
+    });
+    await expect(
+      db.query("update profiles set status=$2 where id=$1", [
+        actor,
+        "🙂".repeat(41),
+      ]),
+    ).rejects.toThrow(/profiles_status_check/);
+    await expect(
+      db.query("update profiles set ssc_batch='৩০০০' where id=$1", [actor]),
+    ).rejects.toThrow(/profiles_ssc_batch_check/);
+    await db.query("update profiles set status=$2 where id=$1", [
+      actor,
+      " \u2003\n ",
+    ]);
+    expect((await db.query("select status from profiles")).rows[0]).toEqual({
+      status: "",
+    });
+    expect(
+      (
+        await db.query(
+          "select indexdef from pg_indexes where indexname='notifications_unread'",
+        )
+      ).rows[0],
+    ).toMatchObject({
+      indexdef: expect.stringContaining("WHERE (read_at IS NULL)"),
+    });
+    expect(
+      (
+        await db.query(
+          "select has_function_privilege('authenticated','public.normalize_profile_fields()','EXECUTE') allowed",
+        )
+      ).rows[0],
+    ).toEqual({ allowed: false });
     await db.exec(migrationSQL(migrations));
     expect(await versions()).toEqual(migrations.map((m) => m.version));
   });

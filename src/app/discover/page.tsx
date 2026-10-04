@@ -1,9 +1,10 @@
+import { publicMetadata } from "@/lib/metadata";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { people, viewer, feed, topics, relationships } from "@/lib/data";
 import { PersonCard, PostCard } from "@/components/post-card";
 import { Empty } from "@/components/empty";
-export const metadata = { title: "খুঁজে দেখি" };
+export const metadata = publicMetadata("/discover", "খুঁজে দেখি");
 export default async function Page({
   searchParams,
 }: {

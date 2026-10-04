@@ -1,3 +1,5 @@
+import { publicMetadata } from "@/lib/metadata";
+import { charCount } from "@/lib/config";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
@@ -19,8 +21,9 @@ export async function generateMetadata({
 }) {
   const p = await getProfile((await params).username);
   return {
-    title: p?.display_name ?? "প্রোফাইল পাওয়া যায়নি",
-    description: p?.bio,
+    ...(p
+      ? publicMetadata(`/u/${p.username}`, p.display_name, p.bio || undefined)
+      : { title: "প্রোফাইল পাওয়া যায়নি" }),
     robots: { index: !!p?.discoverable },
   };
 }
@@ -46,7 +49,11 @@ export default async function Page({
     >
       <section className={`profile-card card accent-${p.accent}`}>
         <div className="profile-cover">
-          <span aria-hidden="true">{p.status || "✦"}</span>
+          <span
+            className={charCount(p.status) > 12 ? "long-status" : undefined}
+          >
+            {p.status || <span aria-hidden="true">✦</span>}
+          </span>
         </div>
         <div className="profile-content">
           <div className="profile-top">

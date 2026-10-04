@@ -6,24 +6,6 @@ export async function RightRail() {
   const tags = await topics();
   return (
     <aside className="right-rail">
-      <div className="rail-card vibe-card">
-        <span className="eyebrow">
-          <span className="live-dot" /> আজকের vibe
-        </span>
-        <h2>
-          একটু থামো।
-          <br />
-          একটু আড্ডা দাও<span>।</span>
-        </h2>
-        <p>
-          সব কথার একটা উদ্দেশ্য লাগে না।
-          <br />
-          কিছু কথা শুধু ভালো লাগে।
-        </p>
-        <span className="vibe-doodle" aria-hidden="true">
-          ☕
-        </span>
-      </div>
       <div className="rail-card">
         <div className="rail-heading">
           <h3>
@@ -43,7 +25,7 @@ export async function RightRail() {
               <span className="topic-number">{bn(i + 1).padStart(2, "০")}</span>
               <span>
                 <b>#{t.tag}</b>
-                <small>{bn(t.count)}টা সাম্প্রতিক কথা</small>
+                <small>{bn(t.count)} জনের সাম্প্রতিক কথা</small>
               </span>
               <ArrowUpRight size={15} />
             </Link>

@@ -155,3 +155,13 @@ No DMs, group chat, anonymous confession, media/file uploads, stories, reels, st
 Home posts, reactions, replies, follows/counts and own content deletion update locally while a small same-origin `/api/social` request validates and executes the existing caller-session RPC. Rejections restore the draft/snapshot; uncertain responses trigger a fresh read rather than retrying an insert or toggle. Server responses return public canonical rows or aggregate counts, preserving RLS, private phone storage and database authorization. Standalone composition, authentication, account changes, moderation and safety actions retain server-confirmed behavior.
 
 Feed tabs use local selection/history, bounded per-mounted-session prefetch and a five-second in-memory cache. Writes invalidate stale in-flight reads. Safety revalidation resets client snapshots; a route refresh is used only when navigation races an outstanding write or back/forward restores a snapshot from before a write. No CSS, copy, schema or dependencies changed for this workflow. `tests/e2e/interactions.spec.ts` holds requests to verify immediate updates, serialization, rollback, authoritative confirmation and cross-route reconciliation against the disposable local stack.
+
+## Launch polish
+
+Notifications stay unread when the inbox opens. Opening a notification or using its read button marks only that notification/group; mark-all-read is explicit. Desktop/mobile navigation shows a capped unread badge (৯৯+) from at most 100 RLS-filtered IDs, without polling. Reaction groups do not mix read and unread events; reply links target their comment anchors.
+
+SSC/HSC batches accept Bengali and ASCII digits and store ASCII years under the existing 1000–2999 rule. Optional status allows 40 Unicode codepoints, trimmed on save. Accent IDs remain unchanged; only their display names are simplified. Posts, replies and notifications share Dhaka relative timestamps and exact-time titles. Daily questions rotate through 31 curated questions once per Dhaka calendar day.
+
+Public launch pages: `/privacy`, `/terms`, `/community`, with the configured support/appeals mailbox. Canonicals and social sharing default to the production origin; a custom canonical origin still comes from `NEXT_PUBLIC_SITE_URL`. The existing app icon is retained and the sharing image reuses it. Theme-color metadata is present; there is no manifest/service worker/offline install workflow. PWA support is deliberately deferred.
+
+Apply every ordered migration, including the two launch refinements, before deploying this version. See HANDOFF and VALIDATION for the deployment evidence and limits.

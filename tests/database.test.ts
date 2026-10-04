@@ -448,6 +448,94 @@ describe("real PostgreSQL migration, authorization and social operations", () =>
       ).rows,
     ).toEqual([{ kind: "reaction" }]);
   });
+  it("reads one/group/all without crossing recipients and keeps unread counts consistent", async () => {
+    const id = await post();
+    await command(b, "react", { id, kind: "love" });
+    await command(c, "react", { id, kind: "haha" });
+    await command(b, "comment", { id, body: "unrelated reply" });
+    await command(a, "follow", { id: b, enabled: true });
+    const before = await rows(
+      a,
+      "select id,kind from notifications where read_at is null",
+    );
+    expect(before.rows).toHaveLength(3);
+    const group = before.rows
+      .filter((n) => n.kind === "reaction")
+      .map((n) => n.id);
+    expect(group).toHaveLength(2);
+    const foreign = (
+      await rows(b, "select id from notifications where read_at is null")
+    ).rows[0].id;
+    await command(a, "read", { ids: [...group, foreign] });
+    expect(
+      (await rows(a, "select id from notifications where read_at is null"))
+        .rows,
+    ).toHaveLength(1);
+    expect(
+      (await rows(b, "select id from notifications where read_at is null"))
+        .rows,
+    ).toHaveLength(1);
+    await command(a, "read", {
+      id: before.rows.find((n) => n.kind === "comment")!.id,
+    });
+    expect(
+      (await rows(a, "select id from notifications where read_at is null"))
+        .rows,
+    ).toHaveLength(0);
+    await command(c, "follow", { id: a, enabled: true });
+    await command(a, "read", {});
+    expect(
+      (await rows(a, "select id from notifications where read_at is null"))
+        .rows,
+    ).toHaveLength(0);
+    expect(
+      (await rows(b, "select id from notifications where read_at is null"))
+        .rows,
+    ).toHaveLength(1);
+  });
+  it("normalizes batch digits at the caller RPC and enforces Unicode status limits with RLS", async () => {
+    await command(
+      a,
+      "profile",
+      profile({
+        ssc_batch: "২০২৫",
+        hsc_batch: "20২৭",
+        status: "🙂".repeat(40),
+      }),
+    );
+    expect(
+      (
+        await rows(
+          a,
+          "select ssc_batch,hsc_batch,status from profiles where id=$1",
+          [a],
+        )
+      ).rows[0],
+    ).toEqual({
+      ssc_batch: "2025",
+      hsc_batch: "2027",
+      status: "🙂".repeat(40),
+    });
+    await expect(
+      command(a, "profile", profile({ status: "🙂".repeat(41) })),
+    ).rejects.toThrow(/profiles_status_check/);
+    await expect(
+      command(a, "profile", profile({ ssc_batch: "20x৫" })),
+    ).rejects.toThrow(/profiles_ssc_batch_check/);
+    await expect(
+      command(a, "profile", profile({ ssc_batch: "৩০০০" })),
+    ).rejects.toThrow(/profiles_ssc_batch_check/);
+    await command(a, "profile", profile({ status: "  \u2003  " }));
+    expect(
+      (await rows(a, "select status from profiles where id=$1", [a])).rows[0]
+        .status,
+    ).toBe("");
+    await expect(
+      asUser(b, () =>
+        db.query("update profiles set status='forged' where id=$1", [a]),
+      ),
+    ).rejects.toThrow(/permission denied/);
+  });
   it("restricts admin account searches and shows opted-out accounts only to admins", async () => {
     await command(a, "profile", profile({ discoverable: false }));
     await expect(

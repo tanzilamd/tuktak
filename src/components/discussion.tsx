@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { PostCard } from "./post-card";
 import { Composer, Mutation, Result } from "./forms";
+import { Timestamp } from "./timestamp";
 import { Avatar } from "./avatar";
 import { RichText } from "./rich-text";
 import { bn } from "@/lib/config";
@@ -102,6 +103,7 @@ export function Discussion({
           {replies.map((c) => (
             <article
               key={c.id}
+              id={`comment-${c.id}`}
               className="comment"
               aria-busy={c.id.startsWith("pending-") || undefined}
             >
@@ -109,7 +111,9 @@ export function Discussion({
                 <Avatar profile={c.profiles} />
                 <span>
                   <b>{c.profiles.display_name}</b>
-                  <small>@{c.profiles.username}</small>
+                  <small>
+                    @{c.profiles.username} · <Timestamp value={c.created_at} />
+                  </small>
                 </span>
               </Link>
               <p className="post-body">

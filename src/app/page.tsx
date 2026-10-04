@@ -1,3 +1,4 @@
+import { publicMetadata } from "@/lib/metadata";
 import Link from "next/link";
 import { ArrowUpRight, MessageCircle, Smile } from "lucide-react";
 import { feed, viewer, socialRevision } from "@/lib/data";
@@ -5,6 +6,7 @@ import { configured } from "@/lib/supabase";
 import { BRAND, questionOfDay } from "@/lib/config";
 import { HomeFeed } from "@/components/home-feed";
 import type { FeedMode } from "@/lib/types";
+export const metadata = publicMetadata("/", "আড্ডা");
 export default async function Home({
   searchParams,
 }: {
@@ -25,7 +27,7 @@ export default async function Home({
           <h1>
             আড্ডা{" "}
             <span className="heading-spark" aria-hidden="true">
-              ✳
+              <MessageCircle size={24} />
             </span>
           </h1>
         </div>
@@ -66,7 +68,7 @@ export default async function Home({
             </span>
           </div>
           <span className="hero-doodle" aria-hidden="true">
-            ✺
+            <MessageCircle size={130} strokeWidth={1} />
           </span>
         </section>
       )}

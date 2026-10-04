@@ -4,13 +4,13 @@ The application is deployed and the local development workflow is implemented. T
 
 ## Current production
 
-| Setting                          | Intended value                                                                |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| Repository / production branch   | `tanzilamd/tuktak` / `main`                                                   |
-| Production URL                   | `https://tuktakbd.vercel.app`                                                 |
-| Supabase project reference / URL | `guqzypztckfnapmptjpu` / `https://guqzypztckfnapmptjpu.supabase.co`           |
-| Deployment source                | Connected GitHub → Vercel project; pushes to `main` trigger production builds |
-| Migration history                | `202610040001`, `20261004000200`, `20261004000300`                            |
+| Setting                          | Intended value                                                                         |
+| -------------------------------- | -------------------------------------------------------------------------------------- |
+| Repository / production branch   | `tanzilamd/tuktak` / `main`                                                            |
+| Production URL                   | `https://tuktakbd.vercel.app`                                                          |
+| Supabase project reference / URL | `guqzypztckfnapmptjpu` / `https://guqzypztckfnapmptjpu.supabase.co`                    |
+| Deployment source                | Connected GitHub → Vercel project; pushes to `main` trigger production builds          |
+| Migration history                | `202610040001`, `20261004000200`, `20261004000300`, `20261005000100`, `20261005000200` |
 
 All three migrations were applied and their stored sources/catalog checked against Git. Production signup/confirmation/onboarding, private-phone protection, dedicated admin/moderation and social-interaction flows have received verification. Auth email delivery was owner-confirmed; SMTP credentials/configuration remain owner-managed. None of this is a permanent guarantee: recheck the affected flows after each change. An existing admin is already bootstrapped; do not run first-admin setup again or recreate/reset this project.
 
@@ -60,7 +60,7 @@ from supabase_migrations.schema_migrations
 order by version;
 ```
 
-Expect all three versions listed above. A version record alone is insufficient: compare its stored `statements` to the committed file and verify the changed tables/constraints/policies/functions/triggers. Never print private table contents, credentials or Auth tokens as part of this check.
+Expect all five versions listed above. A version record alone is insufficient: compare its stored `statements` to the committed file and verify the changed tables/constraints/policies/functions/triggers. Never print private table contents, credentials or Auth tokens as part of this check.
 
 Never use `db reset` against production. After initial deployment, add new migration files; do not edit already-applied migrations or reset real accounts. The fictional local stack's `tuktak_local.migrations` ledger is not the hosted migration workflow; do not create it on production.
 
@@ -196,3 +196,9 @@ Persist the affected designated test baseline privately **before the first write
 Verify `/api/health`, the pushed commit's Vercel Production status and affected live flows after deployment. Check GitHub CI separately; use the failure diagnosis in [VALIDATION.md](VALIDATION.md). Never point `LOCAL_SUPABASE_TESTS=1`, seeds, local reset scripts or owner bypasses at production. Catalog/RLS/history comparisons are read-only. Do not automatically repair the deliberately orphaned historical test account.
 
 For a managed cloud audit, management credentials need the operation's specific scopes. Database read/write access does not imply `auth_config_read`; a 403 means an unverified configuration read, not that Auth is broken. Inspect only setting names/presence and safe public URLs, not SMTP passwords/API secrets. GitHub signed-log downloads use an additional results-storage host; authorize that host through environment settings rather than bypassing network/TLS policy.
+
+## Launch polish deployment
+
+The new forward files are `20261005000100_launch_polish.sql` (40-codepoint status, profile-input trigger and partial unread index) and `20261005000200_batch_whitespace.sql` (match JavaScript Unicode whitespace trimming for numeric batches). They do not backfill or alter existing account/profile/accent values, RLS, grants or Auth. Preserve all previously applied migration bytes. Apply both in order, atomically with native history, before pushing the app build. Never load local seed/test data or the local migration ledger on production.
+
+Unread badges are recipient-scoped and capped at ৯৯+, with no polling. Inbox visits do not read entries; following a link or its read button reads only that group. Mark-all-read remains explicit. Optional status is 40 Unicode codepoints; Bengali/ASCII batches store ASCII under existing year limits. New Terms and refined privacy/community wording are factual product guidance, not legal review. The operator owns mail delivery, moderation coverage, appeals and retention. PWA/offline/install functionality is not implemented; current icons and theme-color metadata do not imply installability.

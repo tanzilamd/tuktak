@@ -1,3 +1,4 @@
+import { publicMetadata } from "@/lib/metadata";
 import { notFound } from "next/navigation";
 import { feed, viewer } from "@/lib/data";
 import { PostCard } from "@/components/post-card";
@@ -15,10 +16,14 @@ export async function generateMetadata({
   params: Promise<{ tag: string }>;
 }) {
   const { tag } = await params;
-  return {
-    title: `#${decodeTag(tag).slice(0, 40)}`,
-    description: "একই বিষয়ে ছোট ছোট কথা।",
-  };
+  const decoded = decodeTag(tag);
+  return /^[\p{L}\p{M}\p{N}_]{1,40}$/u.test(decoded)
+    ? publicMetadata(
+        `/tag/${encodeURIComponent(decoded)}`,
+        `#${decoded}`,
+        "একই বিষয়ে ছোট ছোট কথা।",
+      )
+    : { title: "বিষয় পাওয়া যায়নি", robots: { index: false } };
 }
 export default async function Page({
   params,

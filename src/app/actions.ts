@@ -5,6 +5,8 @@ import { z } from "zod";
 import { db } from "@/lib/supabase";
 import { executeCommand } from "@/lib/commands";
 import { credentialsSchema, registrationSchema } from "@/lib/validation";
+import { validationFailure } from "@/lib/form-errors";
+import { unreadNotificationCount } from "@/lib/data";
 import { safeNext } from "@/lib/config";
 import type { ActionState } from "@/lib/types";
 const fail = (message: string): ActionState => ({ ok: false, message });
@@ -45,8 +47,22 @@ export async function authenticate(
     return fail("নিরাপত্তা যাচাইটি শেষ করো।");
   if (action === "signup") {
     const parsed = registrationSchema.safeParse(Object.fromEntries(form));
-    if (!parsed.success) return fail(parsed.error.issues[0].message);
+    if (!parsed.success) return validationFailure(parsed.error);
     const { email, password, ...metadata } = parsed.data;
+    // Usernames are public identifiers. Email existence stays deliberately undisclosed.
+    const { data: existing } = await client
+      .from("profiles")
+      .select("username")
+      .eq("username", metadata.username)
+      .maybeSingle();
+    if (existing)
+      return {
+        ...fail("Username-টা কেউ নিয়ে ফেলেছে। অন্য একটা দাও।"),
+        fieldErrors: {
+          username: "Username-টা কেউ নিয়ে ফেলেছে। অন্য একটা দাও।",
+        },
+      };
+
     const { error } = await client.auth.signUp({
       email,
       password,
@@ -64,7 +80,7 @@ export async function authenticate(
   }
   if (action === "login") {
     const parsed = credentialsSchema.safeParse(Object.fromEntries(form));
-    if (!parsed.success) return fail(parsed.error.issues[0].message);
+    if (!parsed.success) return validationFailure(parsed.error);
     const { error } = await client.auth.signInWithPassword({
       ...parsed.data,
       options: { captchaToken },
@@ -75,7 +91,11 @@ export async function authenticate(
   }
   if (action === "forgot") {
     const email = z.email().safeParse(form.get("email"));
-    if (!email.success) return fail("সঠিক ইমেইল দাও।");
+    if (!email.success)
+      return {
+        ...fail("সঠিক ইমেইল দাও।"),
+        fieldErrors: { email: "সঠিক ইমেইল ঠিকানা দাও।" },
+      };
     const { error } = await client.auth.resetPasswordForEmail(email.data, {
       redirectTo: `${siteUrl()}/auth/callback?next=/reset-password`,
       captchaToken,
@@ -90,7 +110,11 @@ export async function authenticate(
     const password = credentialsSchema.shape.password.safeParse(
       form.get("password"),
     );
-    if (!password.success) return fail(password.error.issues[0].message);
+    if (!password.success)
+      return {
+        ...fail("Password ১০–১২৮ অক্ষরের মধ্যে দাও।"),
+        fieldErrors: { password: "Password ১০–১২৮ অক্ষরের মধ্যে দাও।" },
+      };
     const {
       data: { user },
     } = await client.auth.getUser();
@@ -109,4 +133,17 @@ export async function logout() {
   const client = await db();
   if (client) await client.auth.signOut();
   redirect("/");
+}
+
+export async function markNotificationsRead(
+  ids?: string[],
+): Promise<ActionState> {
+  const form = new FormData();
+  form.set("action", "read");
+  if (ids) form.set("ids", JSON.stringify(ids));
+  const result = await executeCommand(form);
+  if (!result.ok) return result;
+  const unreadCount = await unreadNotificationCount();
+  revalidatePath("/", "layout");
+  return { ...result, unreadCount };
 }

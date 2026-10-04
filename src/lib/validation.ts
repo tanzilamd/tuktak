@@ -8,6 +8,7 @@ import {
   REPORT_REASONS,
   RESERVED,
   charCount,
+  STATUS_LIMIT,
 } from "./config";
 export const text = (max: number) =>
   z
@@ -39,7 +40,15 @@ export const phoneSchema = z
   );
 const short = (n: number) =>
   z.string().refine((v) => charCount(v) <= n, `সর্বোচ্চ ${n} অক্ষর।`);
-const batch = z.string().regex(/^([12][0-9]{3})?$/, "চার অক্ষরের সাল দাও।");
+export const normalizeDigits = (value: string) =>
+  value.replace(/[০-৯]/g, (digit) => String("০১২৩৪৫৬৭৮৯".indexOf(digit)));
+export const batchSchema = z
+  .string()
+  .trim()
+  .transform(normalizeDigits)
+  .pipe(
+    z.string().regex(/^([12][0-9]{3})?$/, "চার সংখ্যার সাল দাও, যেমন ২০২৫।"),
+  );
 export const profileSchema = z.object({
   username: usernameSchema,
   display_name: text(40),
@@ -48,13 +57,13 @@ export const profileSchema = z.object({
   institution: short(100),
   institution_visible: z.boolean(),
   class_year: short(40),
-  ssc_batch: batch,
-  hsc_batch: batch,
+  ssc_batch: batchSchema,
+  hsc_batch: batchSchema,
   hobbies: z
     .array(z.enum(HOBBIES))
     .max(5)
     .refine((v) => new Set(v).size === v.length),
-  status: short(12),
+  status: z.string().trim().pipe(short(STATUS_LIMIT)),
   accent: z.enum(ACCENTS),
   discoverable: z.boolean(),
   onboarding: z.boolean().optional(),
@@ -91,7 +100,7 @@ export const commandSchemas = {
   role: z.object({ id, role: z.enum(["user", "moderator"]) }),
 } as const;
 export const credentialsSchema = z.object({
-  email: z.email().max(254),
+  email: z.email({ error: "সঠিক ইমেইল ঠিকানা দাও।" }).max(254),
   password: z.string().min(10, "অন্তত ১০ অক্ষরের password দাও।").max(128),
 });
 export const registrationSchema = credentialsSchema.extend({

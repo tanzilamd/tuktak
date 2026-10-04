@@ -1,5 +1,6 @@
+import { publicMetadata } from "@/lib/metadata";
 import { Support } from "@/components/support";
-export const metadata = { title: "গোপনীয়তা" };
+export const metadata = publicMetadata("/privacy", "গোপনীয়তা");
 export default function Page() {
   return (
     <article className="card content-card prose">
@@ -7,9 +8,9 @@ export default function Page() {
       <h1>তোমার গোপনীয়তা 🛡️</h1>
       <h2>যা ব্যক্তিগত</h2>
       <p>
-        ইমেইল authentication-এর জন্য এবং মোবাইল নম্বর private account data
-        হিসেবে রাখা হয়। অন্যরা এই তথ্য দেখতে বা খুঁজতে পারে না। সুনির্দিষ্ট
-        ঠিকানা, GPS, জন্মতারিখ বা পরিচয়পত্র সংগ্রহ করি না।
+        লগইনের জন্য ইমেইল এবং ব্যক্তিগত অ্যাকাউন্টের তথ্য হিসেবে মোবাইল নম্বর
+        রাখা হয়। অন্যরা এই তথ্য দেখতে বা খুঁজতে পারে না। সুনির্দিষ্ট ঠিকানা,
+        GPS, জন্মতারিখ বা পরিচয়পত্র সংগ্রহ করি না।
       </p>
       <h2>যা সবাই দেখে</h2>
       <p>
@@ -33,10 +34,10 @@ export default function Page() {
       <h2>মুছে ফেলা ও নিরাপত্তা</h2>
       <p>
         Account deletion-এ পরিচয়, private data ও সংশ্লিষ্ট সামাজিক কনটেন্ট মুছে
-        যায়। পরিচয়হীন report ও moderation audit নিরাপত্তার জন্য থেকে যায়।
-        Provider backup তাদের retention সময় পর্যন্ত থাকতে পারে। অ্যাপ
-        পরিচালনাকারীকে deployment-এর আগে সহায়তা ও গোপনীয়তা যোগাযোগের ব্যবস্থা
-        করতে হবে।
+        যায়। রিপোর্ট ও নিরাপত্তার সিদ্ধান্তের ইতিহাসে তোমার অ্যাকাউন্টের সংযোগ
+        সরিয়ে দেওয়া হয়; রিপোর্টের লেখা বা লক্ষ্যবস্তুর ID থেকে কিছু তথ্য থেকে
+        যেতে পারে। Provider backup তাদের retention সময় পর্যন্ত থাকতে পারে।
+        সহায়তা বা গোপনীয়তা নিয়ে প্রশ্ন থাকলে নিচের ঠিকানায় যোগাযোগ করো।
       </p>
       <Support />
     </article>

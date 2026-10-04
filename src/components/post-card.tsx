@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { MessageCircle, MoreHorizontal, ArrowUpRight } from "lucide-react";
+import { Timestamp } from "./timestamp";
 import { Avatar } from "./avatar";
 import { RichText } from "./rich-text";
 import { Mutation, Result } from "./forms";
@@ -34,7 +35,6 @@ export function PostCard({
   const stats = local.source === post || reactionPending ? local.stats : post;
   if (deleted || unavailable) return null;
   const mine = viewer?.id === post.author_id;
-  const date = new Date(post.created_at);
   return (
     <>
       <article className="post-card card" aria-busy={optimistic || undefined}>
@@ -48,13 +48,7 @@ export function PostCard({
               </b>
               <small>
                 @{post.profiles.username} <span>·</span>{" "}
-                <time dateTime={post.created_at}>
-                  {new Intl.DateTimeFormat("bn-BD", {
-                    month: "short",
-                    day: "numeric",
-                    timeZone: "Asia/Dhaka",
-                  }).format(date)}
-                </time>
+                <Timestamp value={post.created_at} />
               </small>
             </span>
           </Link>

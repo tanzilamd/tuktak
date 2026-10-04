@@ -1,3 +1,4 @@
+import { publicMetadata } from "@/lib/metadata";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getPost, viewer, comments, socialRevision } from "@/lib/data";
@@ -12,10 +13,13 @@ export async function generateMetadata({
   if (!z.string().uuid().safeParse(id).success)
     return { title: "পোস্ট পাওয়া যায়নি" };
   const p = await getPost(id);
-  return {
-    title: p ? `${p.profiles.display_name}-এর কথা` : "পোস্ট পাওয়া যায়নি",
-    description: p?.body,
-  };
+  return p
+    ? publicMetadata(
+        `/post/${p.id}`,
+        `${p.profiles.display_name}-এর কথা`,
+        p.body,
+      )
+    : { title: "পোস্ট পাওয়া যায়নি", robots: { index: false } };
 }
 export default async function Page({
   params,

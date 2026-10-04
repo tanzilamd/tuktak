@@ -41,7 +41,12 @@ export type Viewer = {
   role: "user" | "moderator" | "admin";
   suspended: boolean;
 };
-export type ActionState = { ok: boolean; message: string };
+export type ActionState = {
+  ok: boolean;
+  message: string;
+  fieldErrors?: Record<string, string>;
+  unreadCount?: number;
+};
 
 export type FeedMode = "all" | "following" | "institution";
 export type FollowCounts = { followers: number; following: number };

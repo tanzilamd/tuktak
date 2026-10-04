@@ -11,6 +11,8 @@ import {
   Shield,
   ArrowUpRight,
 } from "lucide-react";
+import { useNotificationCount } from "./notification-count";
+import { notificationLabel, unreadLabel } from "@/lib/notifications";
 import { BRAND } from "@/lib/config";
 import { Avatar } from "./avatar";
 import type { Viewer } from "@/lib/types";
@@ -22,6 +24,7 @@ const nav = [
 ];
 export function Navigation({ viewer }: { viewer: Viewer | null }) {
   const path = usePathname();
+  const { count } = useNotificationCount();
   const items = [
     ...nav,
     {
@@ -45,9 +48,19 @@ export function Navigation({ viewer }: { viewer: Viewer | null }) {
               key={label}
               className={`nav-item ${path === href ? "active" : ""}`}
               href={href}
+              aria-label={
+                href === "/notifications" ? notificationLabel(count) : undefined
+              }
               aria-current={path === href ? "page" : undefined}
             >
-              <Icon size={21} />
+              <span className="nav-icon">
+                <Icon size={21} />
+                {href === "/notifications" && count > 0 && (
+                  <span className="notification-badge" aria-hidden="true">
+                    {unreadLabel(count)}
+                  </span>
+                )}
+              </span>
               {label}
               {path === href && <span className="nav-dot" />}
             </Link>
@@ -98,6 +111,7 @@ export function Navigation({ viewer }: { viewer: Viewer | null }) {
           <div className="footer-links">
             <Link href="/community">আড্ডার নিয়ম</Link>
             <Link href="/privacy">গোপনীয়তা</Link>
+            <Link href="/terms">ব্যবহারের শর্ত</Link>
           </div>
           <small>বাংলায়, ভালোবাসায়। 🇧🇩</small>
         </div>
@@ -122,9 +136,19 @@ export function Navigation({ viewer }: { viewer: Viewer | null }) {
             key={label}
             href={href}
             className={path === href ? "active" : ""}
+            aria-label={
+              href === "/notifications" ? notificationLabel(count) : undefined
+            }
             aria-current={path === href ? "page" : undefined}
           >
-            <Icon size={21} />
+            <span className="nav-icon">
+              <Icon size={21} />
+              {href === "/notifications" && count > 0 && (
+                <span className="notification-badge" aria-hidden="true">
+                  {unreadLabel(count)}
+                </span>
+              )}
+            </span>
             <span>{label}</span>
           </Link>
         ))}

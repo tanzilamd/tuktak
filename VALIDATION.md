@@ -138,3 +138,101 @@ The canonical documents now answer all fifteen onboarding questions without chat
 | Known incidents and traps                                   | README troubleshooting; AGENTS lessons; historical evidence above |
 
 Commands and referenced paths must be checked against the actual checkout when these documents change. Existing five canonical documents are sufficient; no competing architecture guide was added. AGENTS retains its structure and Next.js-managed instruction block. Stale claims that hosted Supabase/SMTP/Vercel/Git push were never verified were corrected; detailed history stays here rather than becoming permanent guarantee language in AGENTS.
+
+## Final launch polish — 4 October 2026
+
+This milestone starts from `2dfae262de840c47b4c1a987b0244a54e8a9c240` and preserves the production theme, navigation structure, Bengali-first identity and caller-session/RLS architecture. Root instructions and the canonical repository documents were audited before implementation; previous acceptance is historical evidence, not a substitute for these checks.
+
+### Product audit and implementation
+
+| Area                    | Result                                                                                                                                                                                                                                                                                                                             |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unread notifications    | Small absolute-position badges in both existing navigations; Bengali count/accessible label, capped at ৯৯+. One request-cached, recipient-filtered query reads at most 100 IDs. No polling or full count.                                                                                                                          |
+| Notification read rules | Visiting the inbox leaves notifications unread. Opening an unread link or its read button marks only its group IDs, then updates the badge from the server. Reaction groups preserve post/read-state boundaries; replies have comment anchors. Explicit mark-all-read remains. Unrelated recipients/entries remain unread.         |
+| Daily question          | Existing homepage placement retained. Explicit Asia/Dhaka calendar selection; same-day stable, changes at Dhaka midnight, 31 unique curated questions before repetition. No storage/API.                                                                                                                                           |
+| Accents                 | Only labels changed: mango→কমলা, mint→সবুজ, berry→বেগুনি, sky→নীল. Existing IDs, colors and selections preserved.                                                                                                                                                                                                                  |
+| Bengali copy            | Focused corrections to optional status, phone/privacy hints, institution/onboarding wording, topic counts and retention/report guidance. Existing approved landing/auth tone otherwise retained. Topics count distinct authors, so their label now describes people.                                                               |
+| Validation/errors       | Auth, private phone, profile and onboarding reuse existing Zod rules with safe field errors, visible summary, announcements and first-visible-field focus/scroll. Username conflict is explicit because usernames are public; email existence remains undisclosed. Internal/provider errors are never returned verbatim.           |
+| Bengali years           | SSC/HSC accept ASCII/Bengali digits and normalize to ASCII; mixed digits valid, letters/other numeral scripts/out-of-range invalid. Existing 1000–2999/empty SQL rule retained. Unicode whitespace trim agrees in frontend/server/SQL. Free text is untouched.                                                                     |
+| Status/emoji            | Optional, trimmed plain text, 40 Unicode codepoints in Zod/SQL. Earlier profile/onboarding placement and natural encouragement. Empty whitespace clears status; old values preserved. Long profile text wraps without altering short emoji decoration.                                                                             |
+| Timestamps              | Shared formatter and semantic time element: এইমাত্র, 1–59 minutes, 1–23 hours, then compact Dhaka date. Exact Dhaka time in title; used for posts, replies and notifications.                                                                                                                                                      |
+| Claude-like decoration  | Root cause was the Unicode sunbursts `✺`/`✳`, not an imported logo asset. Replaced locally by existing Lucide MessageCircle icons. Source/UI audit found no unintended AI-provider branding.                                                                                                                                       |
+| Right panel             | Removed static redundant আজকের vibe without adding a query/section. Existing আলোচনায় and guidance remain; daily question stays in its original home position.                                                                                                                                                                      |
+| Auth routes             | Valid users visiting login/signup redirect home. Guest access and callback/recovery/reset utilities retained.                                                                                                                                                                                                                      |
+| Branding                | Existing Tuktak SVG/tab icon preserved; no default Next branding. Theme-color metadata follows current tokens. New 1200×630 share image reuses existing SVG, font, colors and tagline.                                                                                                                                             |
+| Metadata/SEO            | Public routes get canonical/OG/Twitter metadata, defaulting to https://tuktakbd.vercel.app. Sitemap lists only public launch pages; robots excludes private/auth/API pages. Existing private-page noindex retained; no private account fields in metadata.                                                                         |
+| Privacy                 | Existing Bengali page refined for private phone/no discovery and honest report/audit/provider-backup retention.                                                                                                                                                                                                                    |
+| Terms                   | New concise Bengali /terms page describes actual features, responsibilities, moderation, appeals and deletion limits; no invented legal entity or legal-review claim. Posts/replies can be deleted; profile can be edited.                                                                                                         |
+| Community/moderation    | Existing /community rules and reporting retained; report identity hidden from other users, accessible to authorized staff. Appeals use configured support.                                                                                                                                                                         |
+| Support                 | Existing NEXT_PUBLIC_SUPPORT_EMAIL component retained, shared with Terms. Signup/desktop legal links and small settings links make policy/support discoverable on mobile. No separate help system or operator secret.                                                                                                              |
+| PWA                     | No manifest/service worker/install system existed. Icon/theme metadata verified; full install/offline support remains post-launch, as requested.                                                                                                                                                                                   |
+| UI/accessibility        | Local badge, error hierarchy, status wrapping/location, reply anchors and legal links only. Existing theme/typography/cards/layout retained. Reviewed actual production before screenshots versus local after at 320/360/768/1280 in light/dark. Axe, focus, touch targets, Bengali/long content and overflow regressions covered. |
+| Performance/privacy     | Bounded indexed unread lookup; request-scoped viewer/count caching. No N+1, polling, service-role runtime client, global auth cache or new full-page refresh. Existing authorization, same-origin social protection and public/private separation retained.                                                                        |
+
+### Files and migrations
+
+Changes are confined to config/validation/data/actions, shared notification/error/time/metadata helpers, the affected auth/profile/onboarding/home/sidebar/navigation/policy components and routes, OG image, regression tests and canonical documentation. No dependency, core palette/font, hosting configuration or old migration changes.
+
+Two new forward files: `20261005000100_launch_polish.sql` (status constraint, narrow normalization trigger, partial unread index) and `20261005000200_batch_whitespace.sql` (Unicode batch trim alignment). The second preserves the already locally applied first file's immutable bytes. Fresh-chain and upgrade tests preserve saved rows/accents and check boundaries, trigger privileges, RLS, grants and repeated migration startup. Production PostgreSQL accepted both migrations in a trial transaction that was completely rolled back. Both were then applied atomically with their exact sources in native migration history. Existing profile rows were fingerprint-checked inside the transaction and preserved; historical migration sources, policies, table grants and all 15 RLS tables remain unchanged. Native history now contains the three previous versions plus `20261005000100` and `20261005000200`. A schema/catalog recovery snapshot was saved privately before deployment; it is not a full data/backup-restore rehearsal.
+
+### Validation and limits
+
+- Formatting, lint (zero warnings), strict typecheck, production build and git diff --check passed.
+- Vitest: **105 passed across 10 suites**, including authorization/privacy, single/group/all reads, unrelated recipients/counts, fresh/upgrade/history preservation, Bengali years/status, Dhaka questions and time boundaries.
+- Browser suite: **34 passed (2.2 minutes)**, including existing social/Auth/security behavior plus seven focused launch-polish regressions. The additional badge axe check initially timed out while awaiting unrelated hidden/offscreen feed transitions; its wait now scopes to visible navigation. No app animation or accessibility rule was disabled.
+- Runtime dependency audit: **zero vulnerabilities**, with no dependency changes.
+- Visual evidence is retained in ignored `.local/polish-production-before`, `.local/polish-before`, `.local/polish-after` and Playwright screenshots. Automated scans supplement visual review; real-device/assistive-technology certification is not claimed.
+- A proposed persistent proxy-CA installation was rejected by automatic approval review because it would broaden HTTPS trust. It was not performed. Production browser requests instead use the existing proxy and TLS-verified request/response interception; no TLS validation is disabled.
+- No new realtime notification delivery: counts refresh on server navigation/inbox load and immediately on read actions. No email notification/phone OTP/PWA introduced. Existing feed/inbox bounds, operator mail/moderation/retention duties and broader device/load/backup recovery limits remain. Legal pages are factual product guidance, not professional legal review. Fresh hosted destructive signup/recovery/deletion is not replayed on existing accounts for this milestone; local complete-flow regressions cover unchanged utilities.
+
+### Changed-file inventory
+
+- `public/og-image.png`
+- `src/app/terms/page.tsx`
+- `src/components/form-feedback.tsx`
+- `src/components/notification-count.tsx`
+- `src/components/notification-list.tsx`
+- `src/components/timestamp.tsx`
+- `src/lib/form-errors.ts`
+- `src/lib/metadata.ts`
+- `src/lib/notifications.ts`
+- `src/lib/time.ts`
+- `supabase/migrations/20261005000100_launch_polish.sql`
+- `supabase/migrations/20261005000200_batch_whitespace.sql`
+- `tests/e2e/launch-polish.spec.ts`
+- `tests/launch-polish.test.ts`
+- `AGENTS.md`
+- `HANDOFF.md`
+- `README.md`
+- `VALIDATION.md`
+- `src/app/actions.ts`
+- `src/app/community/page.tsx`
+- `src/app/discover/page.tsx`
+- `src/app/globals.css`
+- `src/app/layout.tsx`
+- `src/app/login/page.tsx`
+- `src/app/notifications/page.tsx`
+- `src/app/page.tsx`
+- `src/app/post/[id]/page.tsx`
+- `src/app/privacy/page.tsx`
+- `src/app/robots.ts`
+- `src/app/settings/page.tsx`
+- `src/app/signup/page.tsx`
+- `src/app/sitemap.ts`
+- `src/app/tag/[tag]/page.tsx`
+- `src/app/u/[username]/page.tsx`
+- `src/components/discussion.tsx`
+- `src/components/forms.tsx`
+- `src/components/navigation.tsx`
+- `src/components/onboarding.tsx`
+- `src/components/post-card.tsx`
+- `src/components/right-rail.tsx`
+- `src/components/support.tsx`
+- `src/lib/commands.ts`
+- `src/lib/config.ts`
+- `src/lib/data.ts`
+- `src/lib/types.ts`
+- `src/lib/validation.ts`
+- `tests/data.test.ts`
+- `tests/database.test.ts`
+- `tests/migrations.test.ts`

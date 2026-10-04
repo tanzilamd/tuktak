@@ -1,9 +1,19 @@
 "use client";
-import { useActionState, useState } from "react";
+import { useActionState, useState, useCallback } from "react";
 import Link from "next/link";
 import { mutate } from "@/app/actions";
-import { EDUCATION, HOBBIES, ACCENTS, bn } from "@/lib/config";
-import type { Profile } from "@/lib/types";
+import {
+  EDUCATION,
+  HOBBIES,
+  ACCENTS,
+  ACCENT_LABELS,
+  STATUS_LIMIT,
+  bn,
+} from "@/lib/config";
+import { FeedbackForm, FieldError } from "./form-feedback";
+import { profileSchema } from "@/lib/validation";
+import { profileInput, validationFailure } from "@/lib/form-errors";
+import type { Profile, ActionState } from "@/lib/types";
 export function Onboarding({ profile }: { profile: Profile }) {
   const [step, setStep] = useState(0);
   const [values, setValues] = useState({
@@ -21,10 +31,25 @@ export function Onboarding({ profile }: { profile: Profile }) {
     accent: profile.accent,
     discoverable: profile.discoverable,
   });
-  const [state, submit, pending] = useActionState(mutate, {
-    ok: false,
-    message: "",
-  });
+  const [state, submit, pending] = useActionState<ActionState, FormData>(
+    mutate,
+    {
+      ok: false,
+      message: "",
+    },
+  );
+  const [stepError, setStepError] = useState<ActionState | null>(null);
+  const revealErrors = useCallback((errors: Record<string, string>) => {
+    const field = Object.keys(errors)[0];
+    if (["display_name", "username", "bio", "status"].includes(field))
+      setStep(0);
+    else if (field === "education") setStep(1);
+    else if (
+      ["institution", "class_year", "ssc_batch", "hsc_batch"].includes(field)
+    )
+      setStep(2);
+    else setStep(3);
+  }, []);
   const update = (key: string, value: string | boolean | string[]) =>
     setValues((v) =>
       key === "education"
@@ -62,16 +87,27 @@ export function Onboarding({ profile }: { profile: Profile }) {
     <label className="field">
       <span>{label}</span>
       <input
+        data-field={key}
+        aria-describedby={`error-${key}`}
+        inputMode={key.endsWith("batch") ? "numeric" : undefined}
         value={values[key]}
         onChange={(e) => update(key, e.target.value)}
-        maxLength={max}
+        maxLength={key === "status" ? max * 2 : max}
         required={required}
         pattern={key === "username" ? "[A-Za-z0-9_]{3,20}" : undefined}
       />
+      <FieldError name={key} />
     </label>
   );
   return (
-    <form action={submit} className="stack onboarding-form">
+    <FeedbackForm
+      action={submit}
+      className="stack onboarding-form"
+      state={stepError ?? state}
+      schema={profileSchema}
+      input={profileInput}
+      onErrors={revealErrors}
+    >
       <input type="hidden" name="action" value="profile" />
       <input type="hidden" name="onboarding" value="true" />
       {Object.entries(values)
@@ -101,10 +137,18 @@ export function Onboarding({ profile }: { profile: Profile }) {
             {input("display_name", "ডাকনাম", 40, true)}
             {input("username", "Username", 20, true)}
             {input("bio", "একটু নিজের কথা · ঐচ্ছিক", 100)}
+            {input(
+              "status",
+              "আজ কেমন আছ? · ইমোজি বা স্ট্যাটাস · ঐচ্ছিক",
+              STATUS_LIMIT,
+            )}
+            <small className="muted">
+              চাইলে ছোট্ট কিছু লিখো · সর্বোচ্চ ৪০ অক্ষর।
+            </small>
             <div className="privacy-note">
               <p>
-                তোমার ব্যক্তিগত মোবাইল নম্বর registration-এ রাখা হয়েছে। শুধু{" "}
-                <Link href="/settings">নিজের settings</Link>-এ দেখা বা বদলানো
+                তোমার মোবাইল নম্বর শুধু{" "}
+                <Link href="/settings">নিজের সেটিংস</Link>-এ দেখা বা বদলানো
                 যাবে।
               </p>
             </div>
@@ -159,8 +203,8 @@ export function Onboarding({ profile }: { profile: Profile }) {
               </>
             ) : (
               <p className="muted">
-                একটা institution দিয়ে তোমাকে বোঝানো যায় না। এই ধাপে কিছু পূরণ না
-                করলেও হবে। 🌱
+                একটা প্রতিষ্ঠানের নাম দিয়ে তোমাকে বোঝানো যায় না। এই ধাপে কিছু
+                পূরণ না করলেও হবে। 🌱
               </p>
             )}
             {school && input("ssc_batch", "SSC batch · ঐচ্ছিক", 4)}
@@ -199,16 +243,16 @@ export function Onboarding({ profile }: { profile: Profile }) {
                 </label>
               ))}
             </div>
-            {input("status", "ছোট্ট emoji / status · ঐচ্ছিক", 12)}
+
             <label className="field">
-              <span>তোমার রং</span>
+              <span>তোমার রঙ</span>
               <select
                 value={values.accent}
                 onChange={(e) => update("accent", e.target.value)}
               >
-                {ACCENTS.map((a, i) => (
+                {ACCENTS.map((a) => (
                   <option key={a} value={a}>
-                    {["আমের রোদ", "পুদিনা", "জামরং", "আকাশ"][i]}
+                    {ACCENT_LABELS[a]}
                   </option>
                 ))}
               </select>
@@ -221,7 +265,10 @@ export function Onboarding({ profile }: { profile: Profile }) {
           <button
             className="button"
             type="button"
-            onClick={() => setStep(step - 1)}
+            onClick={() => {
+              setStepError(null);
+              setStep(step - 1);
+            }}
           >
             ← আগের ধাপ
           </button>
@@ -232,7 +279,29 @@ export function Onboarding({ profile }: { profile: Profile }) {
               className="button button-primary"
               type="button"
               onClick={(e) => {
-                if (e.currentTarget.form?.reportValidity()) setStep(step + 1);
+                const fields =
+                  step === 0
+                    ? ({
+                        display_name: true,
+                        username: true,
+                        bio: true,
+                        status: true,
+                      } as const)
+                    : step === 1
+                      ? ({ education: true } as const)
+                      : ({
+                          institution: true,
+                          class_year: true,
+                          ssc_batch: true,
+                          hsc_batch: true,
+                        } as const);
+                const result = profileSchema.pick(fields).safeParse(values);
+                if (!result.success)
+                  setStepError(validationFailure(result.error));
+                else {
+                  setStepError(null);
+                  if (e.currentTarget.form?.reportValidity()) setStep(step + 1);
+                }
               }}
             >
               পরের ধাপ →
@@ -241,7 +310,10 @@ export function Onboarding({ profile }: { profile: Profile }) {
               <button
                 className="skip-step"
                 type="button"
-                onClick={() => setStep(step + 1)}
+                onClick={() => {
+                  setStepError(null);
+                  setStep(step + 1);
+                }}
               >
                 এখন না
               </button>
@@ -251,17 +323,13 @@ export function Onboarding({ profile }: { profile: Profile }) {
           <button
             className="button button-primary"
             type="submit"
+            onClick={() => setStepError(null)}
             disabled={pending}
           >
             {pending ? "রাখছি…" : "এবার আড্ডায় যাই"}
           </button>
         )}
       </div>
-      {state.message && (
-        <p role={state.ok ? "status" : "alert"} className="form-message danger">
-          {state.message}
-        </p>
-      )}
-    </form>
+    </FeedbackForm>
   );
 }

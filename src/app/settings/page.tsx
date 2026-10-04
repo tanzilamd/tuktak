@@ -43,6 +43,11 @@ export default async function Page() {
           চুপ রাখা অ্যাকাউন্ট →
         </Link>
       </section>
+      <p className="small muted footer-links">
+        <Link href="/community">আড্ডার নিয়ম</Link>
+        <Link href="/privacy#support">গোপনীয়তা ও সহায়তা</Link>
+        <Link href="/terms">ব্যবহারের শর্ত</Link>
+      </p>
       <section className="card content-card">
         <h2>বিদায়, আপাতত?</h2>
         <form action={logout}>
@@ -54,8 +59,9 @@ export default async function Page() {
           <summary>অ্যাকাউন্ট মুছে ফেলতে চাই</summary>
           <p>
             প্রোফাইল, ব্যক্তিগত তথ্য, পোস্ট, উত্তর আর প্রতিক্রিয়া স্থায়ীভাবে
-            মুছে যাবে। নিরাপত্তার জন্য রিপোর্ট ও moderation audit পরিচয়হীনভাবে
-            রাখা হতে পারে। ফিরিয়ে আনা যাবে না।
+            মুছে যাবে। নিরাপত্তার জন্য রিপোর্ট ও সিদ্ধান্তের ইতিহাস থেকে যেতে
+            পারে; সেখানে থাকা লেখা পুরোপুরি মুছে না-ও যেতে পারে। ফিরিয়ে আনা যাবে
+            না।
           </p>
           <Mutation
             action="delete_account"

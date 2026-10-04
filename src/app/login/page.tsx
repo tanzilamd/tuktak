@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { viewer } from "@/lib/data";
 import Link from "next/link";
 import { AuthForm } from "@/components/forms";
 import { safeNext } from "@/lib/config";
@@ -10,6 +12,7 @@ export default async function Page({
 }: {
   searchParams: Promise<{ next?: string; error?: string; reset?: string }>;
 }) {
+  if (await viewer()) redirect("/");
   const p = await searchParams;
   return (
     <section className="auth-card card">

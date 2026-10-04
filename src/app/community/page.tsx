@@ -1,5 +1,6 @@
+import { publicMetadata } from "@/lib/metadata";
 import { Support } from "@/components/support";
-export const metadata = { title: "আড্ডার নিয়ম" };
+export const metadata = publicMetadata("/community", "আড্ডার নিয়ম");
 export default function Page() {
   return (
     <article className="card content-card prose">
@@ -17,8 +18,9 @@ export default function Page() {
       </p>
       <h2>ভালো না লাগলে নিজের শান্তি বেছে নাও।</h2>
       <p>
-        Mute, block ও report ব্যবহার করো। রিপোর্ট গোপন থাকে। Moderation দল
-        পরিস্থিতি অনুযায়ী কনটেন্ট সরাতে বা অ্যাকাউন্ট স্থগিত করতে পারে।
+        Mute, block ও report ব্যবহার করো। অন্য ব্যবহারকারীরা রিপোর্টকারীর পরিচয়
+        দেখতে পারে না। দায়িত্বপ্রাপ্ত দল পরিস্থিতি অনুযায়ী কনটেন্ট সরাতে বা
+        অ্যাকাউন্ট স্থগিত করতে পারে।
       </p>
       <h2>জরুরি বিপদে</h2>
       <p>

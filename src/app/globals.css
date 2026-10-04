@@ -1853,3 +1853,73 @@ select {
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
 }
+
+/* Local launch refinements reuse the existing theme tokens. */
+.nav-icon {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.notification-badge {
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  min-width: 18px;
+  padding: 1px 4px;
+  border-radius: 12px;
+  background: var(--danger);
+  color: var(--bg);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.field-error {
+  color: var(--danger) !important;
+  font-weight: 600;
+}
+.field [aria-invalid="true"] {
+  border-color: var(--danger);
+}
+.form-summary.danger {
+  border-left: 3px solid var(--danger);
+  background: var(--bg);
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.notification > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.person-status {
+  overflow-wrap: anywhere;
+}
+.profile-cover > span.long-status {
+  font-size: 20px;
+  opacity: 1;
+  color: #302e29;
+  transform: none;
+  max-width: 85%;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.comment {
+  scroll-margin-top: 80px;
+}
+.footer-links {
+  flex-wrap: wrap;
+}
+
+.notification .button {
+  min-height: 44px;
+}
+.desktop-nav .nav-icon {
+  position: static;
+}
+.desktop-nav .notification-badge {
+  left: auto;
+  right: 36px;
+  top: 50%;
+  transform: translateY(-50%);
+}

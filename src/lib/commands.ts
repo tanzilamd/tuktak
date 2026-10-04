@@ -2,6 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { db } from "./supabase";
 import { commandSchemas } from "./validation";
+import { validationFailure } from "./form-errors";
 import type { ActionState } from "./types";
 const fail = (message: string): ActionState => ({ ok: false, message });
 export async function executeCommand(
@@ -31,7 +32,7 @@ export async function executeCommand(
     }
   }
   const parsed = schema.safeParse(raw);
-  if (!parsed.success) return fail(parsed.error.issues[0].message);
+  if (!parsed.success) return validationFailure(parsed.error);
   const client = await db();
   if (!client)
     return fail("এই মুহূর্তে আড্ডায় যোগ দেওয়া যাচ্ছে না। একটু পরে চেষ্টা করো।");
@@ -46,8 +47,13 @@ export async function executeCommand(
       return fail("একটু বিরতি নিই? ১০ মিনিট পরে আবার চেষ্টা করো।");
     if (error.message.includes("duplicate_content"))
       return fail("এই কথাটা একটু আগেই বলেছ। নতুন কিছু বলি?");
-    if (error.code === "23505")
-      return fail("Username-টা কেউ নিয়ে ফেলেছে। অন্য একটা দাও।");
+    if (action === "profile" && error.code === "23505")
+      return {
+        ...fail("Username-টা কেউ নিয়ে ফেলেছে। অন্য একটা দাও।"),
+        fieldErrors: {
+          username: "Username-টা কেউ নিয়ে ফেলেছে। অন্য একটা দাও।",
+        },
+      };
     if (error.message.includes("account_suspended"))
       return fail("তোমার অ্যাকাউন্ট আপাতত স্থগিত আছে।");
     if (error.message.includes("authentication_required"))
@@ -58,7 +64,7 @@ export async function executeCommand(
     ok: true,
     message:
       action === "report"
-        ? "রিপোর্ট পেয়েছি। তোমার পরিচয় গোপন থাকবে।"
+        ? "রিপোর্ট পেয়েছি। অন্য ব্যবহারকারীরা তোমার পরিচয় দেখবে না।"
         : "হয়ে গেছে ✨",
     ...(typeof data?.id === "string" ? { id: data.id } : {}),
   };

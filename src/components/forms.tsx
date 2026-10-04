@@ -3,6 +3,8 @@ import { useActionState, useState, useRef, useId, type ReactNode } from "react";
 import { mutate, authenticate } from "@/app/actions";
 import {
   ACCENTS,
+  ACCENT_LABELS,
+  STATUS_LIMIT,
   EDUCATION,
   HOBBIES,
   MOODS,
@@ -13,6 +15,13 @@ import {
 import type { ActionState, Profile } from "@/lib/types";
 import { Send, Check, ArrowRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
+import { FeedbackForm, FieldError, useFieldError } from "./form-feedback";
+import {
+  registrationSchema,
+  credentialsSchema,
+  commandSchemas,
+} from "@/lib/validation";
+import { profileInput } from "@/lib/form-errors";
 import { Captcha } from "./captcha";
 import { useInteraction, type InteractionCallbacks } from "./interaction";
 import { useFollowScope } from "./follow-state";
@@ -281,7 +290,20 @@ export function AuthForm({
   const signup = kind === "signup";
   const key = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   return (
-    <form action={submit} className="stack">
+    <FeedbackForm
+      action={submit}
+      className="stack"
+      state={state}
+      schema={
+        signup
+          ? registrationSchema
+          : kind === "forgot"
+            ? credentialsSchema.pick({ email: true })
+            : kind === "update_password"
+              ? credentialsSchema.pick({ password: true })
+              : credentialsSchema
+      }
+    >
       <input name="action" type="hidden" value={kind} />
       <input name="next" type="hidden" value={next} />
       {signup && (
@@ -341,7 +363,8 @@ export function AuthForm({
       {key && kind !== "update_password" && <Captcha siteKey={key} />}
       {signup && (
         <p className="muted small">
-          যোগ দিলে আমাদের <Link href="/community">আড্ডার নিয়ম</Link> ও{" "}
+          যোগ দিলে আমাদের <Link href="/terms">ব্যবহারের শর্ত</Link>,{" "}
+          <Link href="/community">আড্ডার নিয়ম</Link> ও{" "}
           <Link href="/privacy">গোপনীয়তা নীতি</Link> মেনে নিচ্ছ।
         </p>
       )}
@@ -361,8 +384,7 @@ export function AuthForm({
                 : "Password বদলাই"}
         <ArrowRight size={18} />
       </button>
-      <Result state={state} />
-    </form>
+    </FeedbackForm>
   );
 }
 function Field({
@@ -374,15 +396,22 @@ function Field({
   hint?: string;
 } & React.InputHTMLAttributes<HTMLInputElement>) {
   const id = useId();
+  const error = useFieldError(props.name);
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
       <input
         id={id}
-        aria-describedby={hint ? `${id}-hint` : undefined}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={
+          [hint ? `${id}-hint` : "", error ? `error-${props.name}` : ""]
+            .filter(Boolean)
+            .join(" ") || undefined
+        }
         {...props}
       />
       {hint && <small id={`${id}-hint`}>{hint}</small>}
+      <FieldError name={props.name ?? ""} />
     </div>
   );
 }
@@ -404,7 +433,13 @@ export function ProfileForm({
   const admission = education === EDUCATION[4];
   const institutional = school || college || uni;
   return (
-    <form action={submit} className="stack profile-form">
+    <FeedbackForm
+      action={submit}
+      className="stack profile-form"
+      state={state}
+      schema={commandSchemas.profile}
+      input={profileInput}
+    >
       <input type="hidden" name="action" value="profile" />
       <input type="hidden" name="onboarding" value={String(onboarding)} />
       <div className="form-grid">
@@ -433,8 +468,29 @@ export function ProfileForm({
           defaultValue={profile.bio}
           maxLength={100}
           rows={2}
+          aria-describedby="error-bio"
         />
+        <FieldError name="bio" />
       </label>
+      <div className="form-grid">
+        <Field
+          label="আজ কেমন আছ? · ঐচ্ছিক"
+          name="status"
+          defaultValue={profile.status}
+          maxLength={STATUS_LIMIT * 2}
+          hint="একটা ইমোজি বা ছোট্ট স্ট্যাটাস দাও · সর্বোচ্চ ৪০ অক্ষর"
+        />
+        <label className="field">
+          <span>তোমার রঙ</span>
+          <select name="accent" defaultValue={profile.accent}>
+            {ACCENTS.map((a) => (
+              <option value={a} key={a}>
+                {ACCENT_LABELS[a]}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       <fieldset>
         <legend>
           পড়াশোনার গল্প <span className="muted">· চাইলে বলো</span>
@@ -490,7 +546,7 @@ export function ProfileForm({
             name="ssc_batch"
             defaultValue={profile.ssc_batch}
             inputMode="numeric"
-            pattern="[12][0-9]{3}|"
+            pattern="[12১২][0-9০-৯]{3}|"
             maxLength={4}
           />
         ) : (
@@ -502,7 +558,7 @@ export function ProfileForm({
             name="hsc_batch"
             defaultValue={profile.hsc_batch}
             inputMode="numeric"
-            pattern="[12][0-9]{3}|"
+            pattern="[12১২][0-9০-৯]{3}|"
             maxLength={4}
           />
         ) : (
@@ -538,24 +594,6 @@ export function ProfileForm({
           ))}
         </div>
       </fieldset>
-      <div className="form-grid">
-        <Field
-          label="ছোট্ট emoji / status"
-          name="status"
-          defaultValue={profile.status}
-          maxLength={12}
-        />
-        <label className="field">
-          <span>তোমার রং</span>
-          <select name="accent" defaultValue={profile.accent}>
-            {ACCENTS.map((a, i) => (
-              <option value={a} key={a}>
-                {["আমের রোদ", "পুদিনা", "জামরং", "আকাশ"][i]}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
       <label className="check">
         <input
           type="checkbox"
@@ -579,8 +617,7 @@ export function ProfileForm({
         {pending ? "রাখছি…" : onboarding ? "এবার আড্ডায় যাই" : "পরিবর্তন রাখি"}
         <Check size={16} />
       </button>
-      <Result state={state} />
-    </form>
+    </FeedbackForm>
   );
 }
 export function ReportForm({ id, type }: { id: string; type: string }) {
@@ -616,7 +653,12 @@ export function ReportForm({ id, type }: { id: string; type: string }) {
 export function PrivatePhoneForm({ phone }: { phone: string }) {
   const [state, submit, pending] = useActionState(mutate, initial);
   return (
-    <form action={submit} className="stack">
+    <FeedbackForm
+      action={submit}
+      className="stack"
+      state={state}
+      schema={commandSchemas.phone}
+    >
       <input type="hidden" name="action" value="phone" />
       <Field
         label="ব্যক্তিগত মোবাইল নম্বর"
@@ -624,12 +666,11 @@ export function PrivatePhoneForm({ phone }: { phone: string }) {
         defaultValue={phone}
         type="tel"
         required
-        hint="নম্বরটি যাচাই করা হয়নি। V1-এ OTP নেই।"
+        hint="নম্বরটি শুধু তোমার অ্যাকাউন্টে থাকবে। এখানে মোবাইল নম্বর যাচাই করা হয় না।"
       />
       <button disabled={pending} className="button button-small">
         নম্বর রাখি
       </button>
-      <Result state={state} />
-    </form>
+    </FeedbackForm>
   );
 }

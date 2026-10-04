@@ -1,7 +1,8 @@
+import { SITE_URL } from "@/lib/config";
 import type { MetadataRoute } from "next";
 export default function sitemap(): MetadataRoute.Sitemap {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  return ["", "/discover", "/community", "/privacy"].map((path) => ({
+  const base = SITE_URL;
+  return ["", "/discover", "/community", "/privacy", "/terms"].map((path) => ({
     url: base + path,
     changeFrequency: "weekly",
   }));

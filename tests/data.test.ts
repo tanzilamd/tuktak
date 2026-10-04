@@ -3,12 +3,18 @@ import { demoPosts, demoProfiles } from "@/lib/demo";
 const { dbMock } = vi.hoisted(() => ({ dbMock: vi.fn() }));
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({ db: dbMock }));
-import { feed, getPost, relationships } from "@/lib/data";
+import {
+  feed,
+  getPost,
+  relationships,
+  unreadNotificationCount,
+} from "@/lib/data";
 
 function query(data: unknown, error: unknown = null) {
   return {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
+    is: vi.fn().mockReturnThis(),
     in: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),
     limit: vi.fn().mockReturnThis(),
@@ -162,5 +168,25 @@ describe("batched follow relationships", () => {
     await expect(relationships([demoProfiles[1].id])).rejects.toThrow(
       "Database request failed",
     );
+  });
+});
+
+describe("bounded unread badge query", () => {
+  it("uses only recipient-scoped unread IDs and stops at 100 rows", async () => {
+    const { instance } = client();
+    const base = instance.from.getMockImplementation()!;
+    const unread = query(Array.from({ length: 100 }, (_, id) => ({ id })));
+    instance.from.mockImplementation((table) =>
+      table === "notifications" ? unread : base(table),
+    );
+    expect(await unreadNotificationCount()).toBe(100);
+    expect(unread.select).toHaveBeenCalledWith("id");
+    expect(unread.eq).toHaveBeenCalledWith("recipient_id", demoProfiles[0].id);
+    expect(unread.is).toHaveBeenCalledWith("read_at", null);
+    expect(unread.limit).toHaveBeenCalledWith(100);
+  });
+  it("does not query notification data for a guest", async () => {
+    dbMock.mockResolvedValue(null);
+    expect(await unreadNotificationCount()).toBe(0);
   });
 });
