@@ -1,5 +1,15 @@
 # Validation evidence
 
+## Production signup investigation — 4 October 2026
+
+The owner confirmed a fresh production signup, confirmation email, verification and onboarding work at `https://tuktakbd.vercel.app`. Provider logs show the earlier signup succeeded and sent email; database statement statistics record an owner-role direct profile deletion affecting one row. Private/role rows cascaded away while Auth remained. `viewer()` correctly rejected that incomplete account. Repeating signup for an already confirmed address can return generic success without another confirmation email. No authentication repair, profile restoration or RLS change was needed or performed.
+
+A separate phone-privacy defect was reproduced on a fresh, non-deleted local account and observed on a complete production account: GoTrue restored original phone metadata after the AFTER INSERT trigger stripped it. The forward migration `20261004000300_auth_phone_privacy.sql` adds an invoker trigger that strips phone on metadata updates, with a fixed search path and no public execute grant. It cleans stored metadata only for accounts that already have private storage, preserving accounts, private phones, roles, confirmation and manually orphaned test-account state.
+
+The new real Auth browser assertion failed before the migration (`phone_in_metadata: true`) and passed afterward. The extended flow checks Auth/profile/private/role creation, unconfirmed state, real email, PKCE callback, confirmed state, session/JWT phone privacy and working onboarding/account lookup. Upgrade coverage verifies preserved complete and manually orphaned accounts; direct database coverage verifies subsequent metadata saves and authorized private-phone changes.
+
+Current checks passed: formatting, lint, typecheck, 45 automated tests, 33 database/RLS/migration tests, all 14 Playwright tests including three axe checks, production build and production-dependency audit (zero vulnerabilities). Local tests use only the fixed disposable stack. Hosted migration/deployment evidence is reported separately after execution; these results alone do not prove deployment.
+
 Validation performed in this cloud workspace on 4 October 2026 (Asia/Dhaka), including the targeted pre-production fixes. No production credentials were provided.
 
 ## Passed

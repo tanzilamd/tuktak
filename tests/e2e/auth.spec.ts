@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 test("registration, real verification email, optional onboarding, recovery and account deletion", async ({
   page,
   request,
@@ -21,6 +22,36 @@ test("registration, real verification email, optional onboarding, recovery and a
   await page.getByLabel("Password", { exact: true }).fill(password);
   await page.getByRole("button", { name: "আড্ডায় যোগ দিই" }).click();
   await expect(page).toHaveURL(/verify-email/);
+  // Fixed disposable stack only: inspect actual GoTrue persistence, not a mock.
+  const accountState = () =>
+    JSON.parse(
+      execFileSync(
+        "docker",
+        [
+          "exec",
+          "tuktak-test-db-1",
+          "psql",
+          "-U",
+          "postgres",
+          "-Atc",
+          `select jsonb_build_object(
+            'profile_exists', exists(select 1 from public.profiles where id=u.id),
+            'private_exists', exists(select 1 from public.account_private where user_id=u.id),
+            'role_exists', exists(select 1 from public.user_roles where user_id=u.id),
+            'phone_in_metadata', u.raw_user_meta_data ? 'phone',
+            'confirmed', u.email_confirmed_at is not null
+          ) from auth.users u where email='${email}'`,
+        ],
+        { encoding: "utf8" },
+      ),
+    );
+  expect(accountState()).toEqual({
+    profile_exists: true,
+    private_exists: true,
+    role_exists: true,
+    phone_in_metadata: false,
+    confirmed: false,
+  });
   async function emailLink() {
     let id = "";
     await expect
@@ -52,6 +83,30 @@ test("registration, real verification email, optional onboarding, recovery and a
   }
   await page.goto(await emailLink());
   await expect(page).toHaveURL(/onboarding/);
+  await expect(page.getByRole("button", { name: "পরের ধাপ" })).toBeVisible();
+  expect(accountState()).toEqual({
+    profile_exists: true,
+    private_exists: true,
+    role_exists: true,
+    phone_in_metadata: false,
+    confirmed: true,
+  });
+  const cookies = await page.context().cookies();
+  const authCookies = cookies
+    .filter((cookie) => /^sb-.*-auth-token(?:\.\d+)?$/.test(cookie.name))
+    .sort((left, right) => left.name.localeCompare(right.name));
+  const encoded = authCookies.map((cookie) => cookie.value).join("");
+  expect(encoded.startsWith("base64-")).toBe(true);
+  const session = JSON.parse(
+    Buffer.from(encoded.slice(7), "base64url").toString("utf8"),
+  );
+  expect(session.user.user_metadata).not.toHaveProperty("phone");
+  const claims = JSON.parse(
+    Buffer.from(session.access_token.split(".")[1], "base64url").toString(
+      "utf8",
+    ),
+  );
+  expect(claims.user_metadata).not.toHaveProperty("phone");
   await page.getByRole("button", { name: "পরের ধাপ" }).click();
   await page
     .getByLabel("এখন কোথায় আছ?")

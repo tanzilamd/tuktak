@@ -77,6 +77,38 @@ const profile = (extra: object = {}) => ({
   ...extra,
 });
 describe("real PostgreSQL migration, authorization and social operations", () => {
+  it("keeps a valid signup phone private when Auth saves the original metadata again", async () => {
+    // GoTrue can write this original in-memory metadata after handle_new_user().
+    await db.query(
+      "update auth.users set raw_user_meta_data=$2::jsonb where id=$1",
+      [
+        a,
+        JSON.stringify({
+          username: "alpha",
+          display_name: "আলফা",
+          phone: "+8801700000000",
+        }),
+      ],
+    );
+    const result = await db.query<{ metadata: Record<string, unknown> }>(
+      "select raw_user_meta_data metadata from auth.users where id=$1",
+      [a],
+    );
+    expect(result.rows[0].metadata).toEqual({
+      username: "alpha",
+      display_name: "আলফা",
+    });
+    expect((await rows(a, "select phone from account_private")).rows).toEqual([
+      { phone: "+8801700000000" },
+    ]);
+    expect((await rows(a, "select role from user_roles")).rows).toEqual([
+      { role: "user" },
+    ]);
+    await command(a, "phone", { phone: "+8801800000000" });
+    expect((await rows(a, "select phone from account_private")).rows).toEqual([
+      { phone: "+8801800000000" },
+    ]);
+  });
   it.each([
     ["missing", {}],
     ["null", { confirmation: null }],

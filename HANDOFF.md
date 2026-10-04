@@ -1,6 +1,6 @@
 # Owner handoff — টুকটাক
 
-The application and local development workflow are implemented. **No hosted Supabase project or Vercel deployment has been created.** Local validation does not establish hosted email delivery, deployment or domain readiness. [VALIDATION.md](VALIDATION.md) records executed checks.
+The application and local development workflow are implemented. The owner has deployed `https://tuktakbd.vercel.app` and confirmed a fresh production signup → confirmation → verification → onboarding flow. The original two migrations are recorded in production; subsequent migrations must be applied forward without resetting or seeding. [VALIDATION.md](VALIDATION.md) records checks and their limits.
 
 ## What you need to supply
 
@@ -19,7 +19,7 @@ Do not post any secret in GitHub issues, chat, screenshots, source files or clie
 
 1. Create a new Supabase project. Choose a suitable nearby region and save the generated **database password privately**.
 2. Open **Project Settings → API / API Keys**. Record the project URL and **publishable key** (or legacy **anon** key). These two values are public safe. **Do not use service-role or secret API keys.**
-3. In Supabase **SQL Editor**, run the **entire** contents of each migration once, in filename order: first `supabase/migrations/202610040001_core.sql`, then `supabase/migrations/20261004000200_preproduction_guards.sql`. The first creates all 15 tables, constraints, indexes, RLS policies, profile-creation trigger and command/read functions. The second preserves authorization while enforcing null-safe deletion confirmation and rejecting stale onboarding submissions after completion. It creates no media bucket. For an existing project with the initial schema already applied, run only the new pre-production migration; preserve all existing accounts/data.
+3. For a fresh project, apply the entire ordered chain: `202610040001_core.sql`, `20261004000200_preproduction_guards.sql`, then `20261004000300_auth_phone_privacy.sql` under `supabase/migrations/`. The first creates the 15-table schema and RLS/RPCs. The second enforces null-safe deletion consent and stale-onboarding protection. The third prevents GoTrue from restoring phone metadata after signup and cleans existing metadata only where private phone storage already exists. For an existing project, inspect native migration history and apply only pending files; preserve all accounts/data and original version records. There is no media bucket.
 4. Do **not** run `supabase/seed.sql` in production. It contains only development users with shared development passwords.
 5. Verify the schema with the SQL below. All 15 rows must have `relrowsecurity = true`.
 
@@ -49,6 +49,12 @@ npx supabase migration repair --status applied 20261004000200
 ```
 
 Never use `db reset` against production. After initial deployment, add new migration files; do not edit already-applied migrations or reset real accounts. The fictional local stack's `tuktak_local.migrations` ledger is not the hosted migration workflow; do not create it on production.
+
+### Retesting signup safely
+
+Use a completely new email you own to retest signup and confirmation. Supabase deliberately returns generic success for some existing confirmed addresses and does not send another confirmation email. Check provider logs before diagnosing email delivery or trigger failure. A verified user needs a profile, private account and role row; owner deletion of `profiles` cascades the latter two while leaving Auth intact and can cause `Account lookup failed`. Use the app's authorized account-deletion flow for deliberate cleanup, or sign out and use a fresh test account. Do not automatically recreate manually removed account data.
+
+The original production signup incident followed such a manual deletion, not a failed Auth insertion or trigger. A separate reproduced provider behavior restored phone in Auth metadata after the AFTER INSERT trigger; the third migration prevents this on later metadata saves. Email confirmation, RLS, role authorization and the phone value in `account_private` remain unchanged.
 
 ## 2. Configure Supabase Auth
 

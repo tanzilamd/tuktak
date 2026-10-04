@@ -43,6 +43,87 @@ async function versions() {
   ).rows.map((m) => m.version);
 }
 describe("ordered migration chain", () => {
+  it("upgrades GoTrue metadata privacy without changing complete or manually orphaned accounts", async () => {
+    const prior = migrations.slice(0, -1);
+    expect(migrations.at(-1)?.name).toBe(
+      "20261004000300_auth_phone_privacy.sql",
+    );
+    await db.exec(migrationSQL(prior));
+    await seedAccount();
+    const orphan = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+    await db.query("insert into auth.users values($1,$2,null,$3::jsonb)", [
+      orphan,
+      "orphan@example.invalid",
+      JSON.stringify({
+        username: "orphan_user",
+        display_name: "পুরোনো পরীক্ষা",
+        phone: "+8801800000000",
+      }),
+    ]);
+    // Reproduce GoTrue's later metadata save and the owner's direct deletion.
+    await db.query(
+      "update auth.users set raw_user_meta_data=raw_user_meta_data||jsonb_build_object('phone',$2::text) where id=$1",
+      [actor, "+8801700000000"],
+    );
+    await db.query(
+      "update auth.users set raw_user_meta_data=raw_user_meta_data||jsonb_build_object('phone',$2::text) where id=$1",
+      [orphan, "+8801800000000"],
+    );
+    await db.query("delete from public.profiles where id=$1", [orphan]);
+    await db.query(
+      "update public.user_roles set suspended=true where user_id=$1",
+      [actor],
+    );
+    const snapshot = (
+      await db.query(
+        "select row_to_json(p) profile,row_to_json(a) private,row_to_json(r) role from profiles p join account_private a on a.user_id=p.id join user_roles r on r.user_id=p.id",
+      )
+    ).rows;
+    await db.exec(migrationSQL(migrations));
+    expect(await versions()).toEqual(migrations.map((m) => m.version));
+    expect(
+      (
+        await db.query(
+          "select row_to_json(p) profile,row_to_json(a) private,row_to_json(r) role from profiles p join account_private a on a.user_id=p.id join user_roles r on r.user_id=p.id",
+        )
+      ).rows,
+    ).toEqual(snapshot);
+    const accounts = await db.query<{
+      id: string;
+      confirmed: boolean;
+      metadata: Record<string, unknown>;
+    }>(
+      "select id,email_confirmed_at is not null confirmed,raw_user_meta_data metadata from auth.users order by id",
+    );
+    expect(accounts.rows).toEqual([
+      {
+        id: actor,
+        confirmed: true,
+        metadata: { username: "migration_user", display_name: "আগের নাম" },
+      },
+      {
+        id: orphan,
+        confirmed: false,
+        metadata: {
+          username: "orphan_user",
+          display_name: "পুরোনো পরীক্ষা",
+          phone: "+8801800000000",
+        },
+      },
+    ]);
+    expect(
+      (await db.query("select id from profiles where id=$1", [orphan])).rows,
+    ).toEqual([]);
+    expect(
+      (
+        await db.query(
+          "select has_function_privilege('anon','public.strip_auth_phone()','EXECUTE') anon,has_function_privilege('authenticated','public.strip_auth_phone()','EXECUTE') authenticated",
+        )
+      ).rows[0],
+    ).toEqual({ anon: false, authenticated: false });
+    await db.exec(migrationSQL(migrations));
+    expect(await versions()).toEqual(migrations.map((m) => m.version));
+  });
   it("applies later migrations on a fresh installation and keeps history private", async () => {
     expect(migrations.length).toBeGreaterThan(1);
     await db.exec(migrationSQL(migrations));
