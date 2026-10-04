@@ -183,7 +183,7 @@ Two new forward files: `20261005000100_launch_polish.sql` (status constraint, na
 - Runtime dependency audit: **zero vulnerabilities**, with no dependency changes.
 - Visual evidence is retained in ignored `.local/polish-production-before`, `.local/polish-before`, `.local/polish-after` and Playwright screenshots. Automated scans supplement visual review; real-device/assistive-technology certification is not claimed.
 - A proposed persistent proxy-CA installation was rejected by automatic approval review because it would broaden HTTPS trust. It was not performed. Production browser requests instead use the existing proxy and TLS-verified request/response interception; no TLS validation is disabled.
-- No new realtime notification delivery: counts refresh on server navigation/inbox load and immediately on read actions. No email notification/phone OTP/PWA introduced. Existing feed/inbox bounds, operator mail/moderation/retention duties and broader device/load/backup recovery limits remain. Legal pages are factual product guidance, not professional legal review. Fresh hosted destructive signup/recovery/deletion is not replayed on existing accounts for this milestone; local complete-flow regressions cover unchanged utilities.
+- No new realtime notification delivery: counts refresh on new server renders/inbox loads and immediately on read actions. No email notification/phone OTP/PWA introduced. Existing feed/inbox bounds, operator mail/moderation/retention duties and broader device/load/backup recovery limits remain. Legal pages are factual product guidance, not professional legal review. Fresh hosted destructive signup/recovery/deletion is not replayed on existing accounts for this milestone; local complete-flow regressions cover unchanged utilities.
 
 ### Changed-file inventory
 
@@ -236,3 +236,19 @@ Two new forward files: `20261005000100_launch_polish.sql` (status constraint, na
 - `tests/data.test.ts`
 - `tests/database.test.ts`
 - `tests/migrations.test.ts`
+
+### Hosted deployment and live acceptance
+
+Implementation commit `a7bf863ee2d8866dabc756f6c73fab08123e0440` was pushed as a fast-forward to `main`. GitHub CI [37227987217](https://github.com/tanzilamd/tuktak/actions/runs/37227987217) completed successfully, including clean dependency installation, lint/type/Vitest/audit, fresh local stack, repeated startup without ripgrep, production build/start and the full browser suite. Vercel's commit status and GitHub Production deployment `6845555146` both report success for this exact SHA. The canonical live origin serves the new Terms, metadata, SVG icon and share image; health returns 200/ok.
+
+Live TLS-verified browser acceptance passed:
+
+- Home/signup/Terms visual, axe and horizontal-overflow checks at 320/360/768/1280px in light/dark. The original theme remains recognizable against actual production-before screenshots. Policies have canonical/OG/Twitter metadata and configured support links; robots/sitemap contain the production origin and public Terms.
+- Signup empty submission exposes all five field errors and focuses the first visible invalid field without creating an account. Existing-user fresh login works; login/signup redirect home; forgot/reset utilities remain reachable without sending mail or changing a password. Optional status rejects 41 characters beside its field, and all accent IDs remain intact.
+- Mobile settings exposes policy/support; its link reaches the actual public support paragraph. Settings axe scan passes.
+- Two designated actors created only a temporary owned post, reaction and reply. The inbox left their events unread. Opening the reply notification marked only that entry, navigated to its comment anchor and immediately reduced the badge; the unrelated reaction stayed unread. Opening that reaction marked it and navigated to the post. Local regressions separately verify two-actor grouped reactions and explicit mark-all-read; production mark-all-read was not replayed on pre-existing notifications.
+- All owned post/reply/reaction/notification fixtures were removed. Privately saved baseline comparison proves every pre-existing notification ID/read timestamp, the designated public profile, private account and role exactly preserved. No real users' content, phone, role, suspension or historical account was changed.
+
+The verification-only documentation follow-up does not change app/migration/dependency bytes. Final commit/push/deployment status is also provided in the task report. Post-launch candidates remain measured pagination/realtime improvements, PWA/install/offline support if prioritized, real-device/assistive-technology checks, legal review and operational load/backup/mail/moderation exercises. No additional product feature was added to pursue those ideas.
+
+**Verdict: A — launch polish complete on the scoped local and hosted evidence above.**
