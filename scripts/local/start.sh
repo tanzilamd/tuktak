@@ -17,9 +17,13 @@ for _ in $(seq 1 30); do
  sleep 1
 done
 curl --fail --silent http://127.0.0.1:55499/health >/dev/null
+fresh_schema=false
 if ! docker exec tuktak-test-db-1 psql -U postgres -Atc "select coalesce(to_regclass('public.profiles')::text,'')" | rg -q profiles; then
- docker exec tuktak-test-db-1 psql -U postgres -v ON_ERROR_STOP=1 -c 'grant usage on schema auth to anon,authenticated; grant execute on function auth.uid() to anon,authenticated;'
- docker exec -i tuktak-test-db-1 psql -U postgres -v ON_ERROR_STOP=1 < supabase/migrations/202610040001_core.sql
+ fresh_schema=true
+fi
+docker exec tuktak-test-db-1 psql -U postgres -v ON_ERROR_STOP=1 -c 'grant usage on schema auth to anon,authenticated; grant execute on function auth.uid() to anon,authenticated;' >/dev/null
+node scripts/local/migrate.mjs
+if [ "$fresh_schema" = true ]; then
  docker exec -i tuktak-test-db-1 psql -U postgres -v ON_ERROR_STOP=1 < supabase/seed.sql
 fi
 docker exec tuktak-test-db-1 psql -U postgres -c "NOTIFY pgrst, 'reload schema';" >/dev/null

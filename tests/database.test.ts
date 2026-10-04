@@ -1,18 +1,14 @@
 import { beforeAll, beforeEach, afterAll, describe, it, expect } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
-import { readFileSync } from "node:fs";
+import { migrationSQL, readMigrations } from "../scripts/migrations.mjs";
+import { createAuthDatabase } from "./helpers/database";
 let db: PGlite;
 const a = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   b = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
   c = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 beforeAll(async () => {
-  db = new PGlite();
-  await db.exec(
-    `create role anon; create role authenticated; create schema auth; create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,raw_user_meta_data jsonb); create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$; grant usage on schema public,auth to anon,authenticated; grant execute on function auth.uid() to anon,authenticated;`,
-  );
-  await db.exec(
-    readFileSync("supabase/migrations/202610040001_core.sql", "utf8"),
-  );
+  db = await createAuthDatabase();
+  await db.exec(migrationSQL(readMigrations()));
 });
 beforeEach(async () => {
   await db.exec("truncate auth.users cascade");
@@ -49,7 +45,11 @@ async function asUser<T>(id: string | null, run: () => Promise<T>) {
     throw e;
   }
 }
-const command = (id: string | null, action: string, payload: object = {}) =>
+const command = (
+  id: string | null,
+  action: string,
+  payload: object | null = {},
+) =>
   asUser(id, () =>
     db.query<{ command: { id: string } }>(
       "select public.command($1,$2::jsonb)",
@@ -77,6 +77,86 @@ const profile = (extra: object = {}) => ({
   ...extra,
 });
 describe("real PostgreSQL migration, authorization and social operations", () => {
+  it.each([
+    ["missing", {}],
+    ["null", { confirmation: null }],
+    ["incorrect", { confirmation: "oops" }],
+    ["lowercase", { confirmation: "delete" }],
+    ["padded", { confirmation: "DELETE " }],
+    ["null payload", null],
+  ])(
+    "rejects %s account deletion confirmation at the RPC boundary",
+    async (_, payload) => {
+      await expect(command(a, "delete_account", payload)).rejects.toThrow(
+        /confirmation_required/,
+      );
+      expect(
+        (await db.query("select id from auth.users where id=$1", [a])).rows,
+      ).toHaveLength(1);
+      expect(
+        (await rows(a, "select user_id from account_private")).rows,
+      ).toHaveLength(1);
+    },
+  );
+  it("accepts the exact DELETE confirmation at the RPC boundary", async () => {
+    await command(a, "delete_account", { confirmation: "DELETE" });
+    expect(
+      (await db.query("select id from auth.users where id=$1", [a])).rows,
+    ).toHaveLength(0);
+    expect(
+      (
+        await db.query("select user_id from account_private where user_id=$1", [
+          a,
+        ])
+      ).rows,
+    ).toHaveLength(0);
+  });
+  it("rejects stale onboarding submissions while preserving completed profile data", async () => {
+    const saved = profile({
+      class_year: "দশম",
+      ssc_batch: "2027",
+      hsc_batch: "2029",
+      hobbies: ["বই"],
+      bio: "আগের কথা",
+    });
+    await command(a, "profile", saved);
+    const before = (
+      await db.query(
+        "select row_to_json(p) profile,row_to_json(a) private from profiles p join account_private a on a.user_id=p.id where p.id=$1",
+        [a],
+      )
+    ).rows;
+    await expect(
+      command(
+        a,
+        "profile",
+        profile({
+          onboarding: true,
+          institution: "",
+          class_year: "",
+          ssc_batch: "",
+          hsc_batch: "",
+        }),
+      ),
+    ).rejects.toThrow(/onboarding_complete/);
+    expect(
+      (
+        await db.query(
+          "select row_to_json(p) profile,row_to_json(a) private from profiles p join account_private a on a.user_id=p.id where p.id=$1",
+          [a],
+        )
+      ).rows,
+    ).toEqual(before);
+    // Explicit editing remains available; the protection applies to the first-time wizard.
+    await command(a, "profile", {
+      ...saved,
+      bio: "নতুন কথা",
+      onboarding: false,
+    });
+    expect(
+      (await rows(a, "select bio from profiles where id=$1", [a])).rows[0].bio,
+    ).toBe("নতুন কথা");
+  });
   it("enables RLS on every app table and denies public writes", async () => {
     const result = await db.query<{ relname: string; relrowsecurity: boolean }>(
       "select relname,relrowsecurity from pg_class join pg_namespace on pg_namespace.oid=relnamespace where nspname='public' and relkind='r'",
