@@ -161,7 +161,10 @@ test("native prompt only follows a click; decline/dismiss persists across naviga
   await page.getByRole("button", { name: "এখন না", exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(page.locator(".install-card")).toHaveCount(0);
-  await expect(page.locator(".feed-tabs a[aria-current=page]")).toBeFocused();
+  // Streaming can temporarily retain a hidden copy of the feed markup.
+  await expect(
+    page.locator(".feed-tabs:visible a[aria-current=page]"),
+  ).toBeFocused();
   await page.reload();
   await opportunity(page);
   await expect(page.locator(".install-card")).toHaveCount(0);
