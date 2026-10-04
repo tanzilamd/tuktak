@@ -1,11 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getProfile, viewer, feed, relationship, followList } from "@/lib/data";
+import {
+  getProfile,
+  viewer,
+  feed,
+  relationship,
+  followCounts,
+} from "@/lib/data";
 import { Avatar } from "@/components/avatar";
 import { Mutation } from "@/components/forms";
 import { PostCard } from "@/components/post-card";
 import { Empty } from "@/components/empty";
-import { bn } from "@/lib/config";
+import { FollowScope, FollowCounts } from "@/components/follow-state";
 export async function generateMetadata({
   params,
 }: {
@@ -25,16 +31,19 @@ export default async function Page({
 }) {
   const p = await getProfile((await params).username);
   if (!p) notFound();
-  const [v, posts, following, followers, follows] = await Promise.all([
+  const [v, posts, following, counts] = await Promise.all([
     viewer(),
     feed({ author: p.id }),
     relationship(p.id),
-    followList(p.id, "followers"),
-    followList(p.id, "following"),
+    followCounts(p.id),
   ]);
   const mine = v?.id === p.id;
   return (
-    <>
+    <FollowScope
+      key={`${p.id}:${counts.followers}:${counts.following}:${following}`}
+      id={p.id}
+      initial={counts}
+    >
       <section className={`profile-card card accent-${p.accent}`}>
         <div className="profile-cover">
           <span aria-hidden="true">{p.status || "✦"}</span>
@@ -80,14 +89,7 @@ export default async function Page({
               </Link>
             ))}
           </div>
-          <div className="profile-links">
-            <Link href={`/u/${p.username}/followers`}>
-              <b>{bn(followers.length)}</b> জন সাথে আছে
-            </Link>
-            <Link href={`/u/${p.username}/following`}>
-              <b>{bn(follows.length)}</b> জনের সাথে আছি
-            </Link>
-          </div>
+          <FollowCounts username={p.username} />
           {v && !mine && (
             <details className="safety-options">
               <summary>নিরাপত্তা ও অপশন</summary>
@@ -118,6 +120,6 @@ export default async function Page({
         ))}
         {!posts.length && <Empty text="এখনো কোনো কথা বলা হয়নি।" />}
       </div>
-    </>
+    </FollowScope>
   );
 }

@@ -15,7 +15,14 @@ export default defineConfig({
     launchOptions: localBinary
       ? {
           executablePath: await chromium.executablePath(),
-          args: chromium.args.filter((a) => a !== "--single-process"),
+          args: chromium.args.filter(
+            (a) =>
+              ![
+                "--single-process",
+                "--disable-web-security",
+                "--allow-running-insecure-content",
+              ].includes(a),
+          ),
         }
       : {},
   },

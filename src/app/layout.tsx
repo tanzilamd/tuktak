@@ -1,3 +1,4 @@
+import { InteractionSync } from "@/components/interaction-sync";
 import type { Metadata } from "next";
 import "@fontsource/hind-siliguri/400.css";
 import "@fontsource/hind-siliguri/500.css";
@@ -44,6 +45,7 @@ export default async function RootLayout({
         <div className="app-shell">
           <Navigation viewer={v} />
           <main id="main" className="main-column">
+            <InteractionSync key={v?.id ?? "guest"} />
             {children}
           </main>
           <RightRail />

@@ -3,11 +3,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/supabase";
-import {
-  commandSchemas,
-  credentialsSchema,
-  registrationSchema,
-} from "@/lib/validation";
+import { executeCommand } from "@/lib/commands";
+import { credentialsSchema, registrationSchema } from "@/lib/validation";
 import { safeNext } from "@/lib/config";
 import type { ActionState } from "@/lib/types";
 const fail = (message: string): ActionState => ({ ok: false, message });
@@ -17,67 +14,19 @@ export async function mutate(
   _: ActionState,
   form: FormData,
 ): Promise<ActionState> {
+  const result = await executeCommand(form);
+  if (!result.ok) return result;
   const action = String(form.get("action"));
-  const schema = commandSchemas[action as keyof typeof commandSchemas];
-  if (!schema) return fail("অনুরোধটি সঠিক নয়।");
-  const raw: Record<string, unknown> = Object.fromEntries(form.entries());
-  for (const name of [
-    "enabled",
-    "institution_visible",
-    "discoverable",
-    "onboarding",
-  ]) {
-    if (form.has(name))
-      raw[name] = form.get(name) === "true" || form.get(name) === "on";
-    else if (action === "profile") raw[name] = false;
-  }
-  if (action === "profile") raw.hobbies = form.getAll("hobbies");
-  if (action === "read" && !raw.id) delete raw.id;
-  if (action === "read" && raw.ids) {
-    try {
-      raw.ids = JSON.parse(String(raw.ids));
-    } catch {
-      return fail("অনুরোধটি সঠিক নয়।");
-    }
-  }
-  const parsed = schema.safeParse(raw);
-  if (!parsed.success) return fail(parsed.error.issues[0].message);
-  const client = await db();
-  if (!client) return unavailable();
-  const { error, data } = await client.rpc("command", {
-    action,
-    payload: parsed.data,
-  });
-  if (error) {
-    if (action === "profile" && error.message.includes("onboarding_complete"))
-      redirect("/settings/profile");
-    if (error.message.includes("rate_limit"))
-      return fail("একটু বিরতি নিই? ১০ মিনিট পরে আবার চেষ্টা করো।");
-    if (error.message.includes("duplicate_content"))
-      return fail("এই কথাটা একটু আগেই বলেছ। নতুন কিছু বলি?");
-    if (error.code === "23505")
-      return fail("Username-টা কেউ নিয়ে ফেলেছে। অন্য একটা দাও।");
-    if (error.message.includes("account_suspended"))
-      return fail("তোমার অ্যাকাউন্ট আপাতত স্থগিত আছে।");
-    if (error.message.includes("authentication_required"))
-      return fail("আগে লগইন করো।");
-    return fail("কাজটা করা গেল না। অনুমতি ও তথ্য দেখে আবার চেষ্টা করো।");
-  }
   if (action === "delete_account") {
+    const client = (await db())!;
     await client.auth.signOut();
     redirect("/?deleted=1");
   }
   revalidatePath("/", "layout");
   if (action === "post" && form.get("redirect") === "true")
-    redirect(`/post/${data.id}`);
+    redirect(`/post/${result.id}`);
   if (action === "profile" && form.get("onboarding") === "true") redirect("/");
-  return {
-    ok: true,
-    message:
-      action === "report"
-        ? "রিপোর্ট পেয়েছি। তোমার পরিচয় গোপন থাকবে।"
-        : "হয়ে গেছে ✨",
-  };
+  return result;
 }
 export async function authenticate(
   _: ActionState,

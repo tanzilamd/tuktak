@@ -1,11 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getPost, viewer, comments } from "@/lib/data";
-import { PostCard } from "@/components/post-card";
-import { Composer, Mutation } from "@/components/forms";
-import { Avatar } from "@/components/avatar";
-import { RichText } from "@/components/rich-text";
-import { bn } from "@/lib/config";
+import { getPost, viewer, comments, socialRevision } from "@/lib/data";
+import { Discussion } from "@/components/discussion";
 import { z } from "zod";
 export async function generateMetadata({
   params,
@@ -41,50 +37,12 @@ export default async function Page({
           <h1>কথায় কথায় 💬</h1>
         </div>
       </div>
-      <PostCard post={p} viewer={v} detail />
-      <section className="card content-card reply-section">
-        <h2>{bn(replies.length)}টা উত্তর</h2>
-        {v ? (
-          <Composer replyTo={id} />
-        ) : (
-          <p className="muted">
-            <Link href="/login">লগইন করো</Link>, তারপর কথা হবে।
-          </p>
-        )}
-        {!replies.length && (
-          <p className="reply-empty">সবাই চুপ। প্রথম কথাটা তুমি বলবে?</p>
-        )}
-        {replies.map((c) => (
-          <article key={c.id} className="comment">
-            <Link className="post-person" href={`/u/${c.profiles.username}`}>
-              <Avatar profile={c.profiles} />
-              <span>
-                <b>{c.profiles.display_name}</b>
-                <small>@{c.profiles.username}</small>
-              </span>
-            </Link>
-            <p className="post-body">
-              <RichText text={c.body} />
-            </p>
-            {v &&
-              (v.id === c.author_id ? (
-                <Mutation
-                  action="delete_comment"
-                  values={{ id: c.id }}
-                  label="মুছে দিই"
-                  confirm="এই উত্তর মুছে দেবে?"
-                />
-              ) : (
-                <Link
-                  className="small muted"
-                  href={`/report?type=comment&id=${c.id}`}
-                >
-                  রিপোর্ট করি
-                </Link>
-              ))}
-          </article>
-        ))}
-      </section>
+      <Discussion
+        key={socialRevision([p, v, replies])}
+        post={p}
+        viewer={v}
+        initialReplies={replies}
+      />
     </>
   );
 }

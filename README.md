@@ -102,7 +102,7 @@ The packaged Chromium is a dev dependency for environments that cannot download 
 
 ## Product and architecture
 
-Server-rendered App Router pages and authenticated server actions use the caller's Supabase session. PostgreSQL `command()` is the only app mutation path. Direct table writes are revoked. It derives identity from the signed session, requires verified email, checks suspension/roles, serializes per-user commands, enforces database constraints, applies rate limits and maintains notifications.
+Server-rendered App Router pages, authenticated Server Actions and the same-origin social endpoint use the caller's Supabase session. PostgreSQL `command()` is the only app mutation path. Direct table writes are revoked. It derives identity from the signed session, requires verified email, checks suspension/roles, serializes per-user commands, enforces database constraints, applies rate limits and maintains notifications.
 
 Public profiles contain no phone/email or hidden institution. Private accounts and roles have separate tables and own-account RLS. Profile discovery opt-out removes a person from search, while public post/profile URLs remain public. An institution feed appears only after institution publication and matches normalized institution text. All feeds are chronological. Recent topics count at most one author per hashtag over seven days; a post indexes up to five distinct tags. Posts have 240 Unicode codepoints; replies have 180. A Bengali vowel sign and an emoji sequence's component codepoints each count, matching PostgreSQL `char_length`.
 
@@ -143,3 +143,9 @@ Use TLS termination, preserve the canonical host/forwarded host, and do not cach
 ## Non-goals
 
 No DMs, group chat, anonymous confession, media/file uploads, stories, reels, streaming, marketplace, notes, courses, tutoring, AI APIs, dating/matching, precise location, public phone discovery, contact sync or advertising trackers. DMs and anonymous posting need a separate future moderation design. There is no email notification system beyond authentication mail and no recommendation algorithm.
+
+## Social interaction state
+
+Home posts, reactions, replies, follows/counts and own content deletion update locally while a small same-origin `/api/social` request validates and executes the existing caller-session RPC. Rejections restore the draft/snapshot; uncertain responses trigger a fresh read rather than retrying an insert or toggle. Server responses return public canonical rows or aggregate counts, preserving RLS, private phone storage and database authorization. Standalone composition, authentication, account changes, moderation and safety actions retain server-confirmed behavior.
+
+Feed tabs use local selection/history, bounded per-mounted-session prefetch and a five-second in-memory cache. Writes invalidate stale in-flight reads. Safety revalidation resets client snapshots; a route refresh is used only when navigation races an outstanding write. No CSS, copy, schema or dependencies changed for this workflow. `tests/e2e/interactions.spec.ts` holds requests to verify immediate updates, serialization, rollback, authoritative confirmation and cross-route reconciliation against the disposable local stack.

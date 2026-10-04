@@ -78,3 +78,7 @@ Run `npm audit` and `npm audit --omit=dev --audit-level=moderate`, review adviso
 6. Review backup recovery, log retention, account-abuse defenses and how the incident occurred.
 
 Automated tests exercise real PostgreSQL semantics via PGlite and a local PostgreSQL/Auth/PostgREST stack. Hosted Supabase RLS, SMTP, Vercel configuration and actual mobile devices still require the owner acceptance checks in HANDOFF before public launch.
+
+## Optimistic social endpoint
+
+`/api/social` uses the same server-only command validator and caller-session RPC as Server Actions. POST additionally enforces a matching HTTP(S) Origin/routed Host, JSON-only requests and a 4 KiB streamed body limit. Its allowlist excludes role, moderation, profile, safety and account operations. Read/mutation responses contain only public profiles/content, aggregate statistics and follow state/counts, with private/no-store headers. Optimistic client controls never authorize a command. Lost responses are not retried as writes; scoped reads reconcile possible commits. Feed caches are session-local, short-lived and invalidated on mutations; authoritative safety revalidation resets their snapshots.

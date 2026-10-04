@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
 import { db } from "./supabase";
 import { demoPosts, demoProfiles } from "./demo";
@@ -135,7 +136,7 @@ async function withStats(posts: PostRow[]): Promise<Post[]> {
   // Visibility/deletion may change between the row query and the aggregate RPC.
   return posts.flatMap((p) => (stats[p.id] ? [{ ...p, ...stats[p.id] }] : []));
 }
-export async function getPost(id: string) {
+export const getPost = cache(async (id: string) => {
   const client = await db();
   if (!client) return demoPosts.find((p) => p.id === id);
   const { data, error } = await client
@@ -145,8 +146,8 @@ export async function getPost(id: string) {
     .maybeSingle();
   const post = checked(data, error) as unknown as PostRow | null;
   return post ? (await withStats([post]))[0] : undefined;
-}
-export async function getProfile(username: string) {
+});
+export const getProfile = cache(async (username: string) => {
   const client = await db();
   if (!client) return demoProfiles.find((p) => p.username === username);
   const { data, error } = await client
@@ -155,7 +156,7 @@ export async function getProfile(username: string) {
     .eq("username", username.toLowerCase())
     .maybeSingle();
   return checked(data, error) as Profile | undefined;
-}
+});
 export async function comments(id: string): Promise<Comment[]> {
   const client = await db();
   if (!client) return [];
@@ -166,6 +167,7 @@ export async function comments(id: string): Promise<Comment[]> {
     )
     .eq("post_id", id)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(100);
   return checked(data, error) as unknown as Comment[];
 }
@@ -335,4 +337,35 @@ export async function adminAccounts(query = "") {
     role: string;
     suspended: boolean;
   }[];
+}
+
+export async function postStats(id: string): Promise<PostStats | null> {
+  const client = await db();
+  if (!client) return null;
+  const { data, error } = await client.rpc("post_stats", { ids: [id] });
+  return (checked(data, error) as Record<string, PostStats>)[id] ?? null;
+}
+export async function followCounts(id: string) {
+  const client = await db();
+  if (!client) return { followers: 0, following: 0 };
+  const results = await Promise.all(
+    ["following_id", "follower_id"].map((column) =>
+      client
+        .from("follows")
+        .select("follower_id", { count: "exact", head: true })
+        .eq(column, id),
+    ),
+  );
+  for (const result of results)
+    if (result.error) throw new Error("Database request failed");
+  return { followers: results[0].count ?? 0, following: results[1].count ?? 0 };
+}
+
+// Public render snapshots reset local state after authoritative RSC revalidation
+// (particularly block/mute), without serializing a duplicate feed as a React key.
+export function socialRevision(value: unknown) {
+  return createHash("sha256")
+    .update(JSON.stringify(value))
+    .digest("hex")
+    .slice(0, 16);
 }

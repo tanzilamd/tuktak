@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { ArrowUpRight, MessageCircle, Sparkles, Smile } from "lucide-react";
-import { feed, viewer } from "@/lib/data";
+import { ArrowUpRight, MessageCircle, Smile } from "lucide-react";
+import { feed, viewer, socialRevision } from "@/lib/data";
 import { configured } from "@/lib/supabase";
 import { BRAND, questionOfDay } from "@/lib/config";
-import { Composer } from "@/components/forms";
-import { PostCard } from "@/components/post-card";
-import { Empty } from "@/components/empty";
+import { HomeFeed } from "@/components/home-feed";
+import type { FeedMode } from "@/lib/types";
 export default async function Home({
   searchParams,
 }: {
@@ -88,47 +87,14 @@ export default async function Home({
           উত্তর দিই <ArrowUpRight size={15} />
         </Link>
       </section>
-      {v && !v.suspended && <Composer />}
-      <nav className="feed-tabs" aria-label="আড্ডার ধরন">
-        <Link href="/" className={mode === "all" ? "active" : ""}>
-          সবার <Sparkles size={14} />
-        </Link>
-        <Link
-          href={v ? "/?feed=following" : "/login"}
-          className={mode === "following" ? "active" : ""}
-        >
-          যাদের সাথে আছি
-        </Link>
-        {v?.profile.institution && (
-          <Link
-            href="/?feed=institution"
-            className={mode === "institution" ? "active" : ""}
-          >
-            আমার প্রতিষ্ঠান
-          </Link>
-        )}
-        <span>নতুন কথা আগে ↓</span>
-      </nav>
-      {!configured() && (
-        <p className="sample-note">
-          আড্ডার এক ঝলক · নিচের মানুষ আর গল্পগুলো কাল্পনিক নমুনা।
-        </p>
-      )}
-      <div className="post-list">
-        {posts.map((post) => (
-          <PostCard key={post.id} post={post} viewer={v} />
-        ))}
-        {!posts.length && <Empty href="/compose" label="কিছু একটা বলি" />}
-      </div>
-      {configured() && posts.length >= 20 && (
-        <Link
-          className="button load-more"
-          href={`/?feed=${mode}&before=${encodeURIComponent(`${posts.at(-1)!.created_at}|${posts.at(-1)!.id}`)}`}
-        >
-          আরও কিছু কথা ↓
-        </Link>
-      )}
-      <p className="feed-end">✦ এইটুকুই আপাতত। এবার একটু চা হোক?</p>
+      <HomeFeed
+        key={socialRevision([v, mode, params.before, posts])}
+        initialPosts={posts}
+        initialMode={mode as FeedMode}
+        initialBefore={params.before}
+        viewer={v}
+        configured={configured()}
+      />
     </>
   );
 }

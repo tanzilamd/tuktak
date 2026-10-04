@@ -42,3 +42,15 @@ export type Viewer = {
   suspended: boolean;
 };
 export type ActionState = { ok: boolean; message: string };
+
+export type FeedMode = "all" | "following" | "institution";
+export type FollowCounts = { followers: number; following: number };
+export type SocialResult = ActionState & {
+  id?: string;
+  post?: Post;
+  stats?: PostStats | null;
+  comments?: Comment[];
+  following?: boolean;
+  counts?: FollowCounts;
+  uncertain?: boolean;
+};

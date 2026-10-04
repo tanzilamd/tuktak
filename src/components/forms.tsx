@@ -1,5 +1,5 @@
 "use client";
-import { useActionState, useState, useId, type ReactNode } from "react";
+import { useActionState, useState, useRef, useId, type ReactNode } from "react";
 import { mutate, authenticate } from "@/app/actions";
 import {
   ACCENTS,
@@ -14,8 +14,11 @@ import type { ActionState, Profile } from "@/lib/types";
 import { Send, Check, ArrowRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { Captcha } from "./captcha";
+import { useInteraction, type InteractionCallbacks } from "./interaction";
+import { useFollowScope } from "./follow-state";
+import { readSocial } from "@/lib/social";
 const initial: ActionState = { ok: false, message: "" };
-function Result({ state }: { state: ActionState }) {
+export function Result({ state }: { state: ActionState }) {
   return state.message ? (
     <p
       role={state.ok ? "status" : "alert"}
@@ -34,6 +37,8 @@ export function Mutation({
   confirm,
   pressed,
   ariaLabel,
+  interaction,
+  disabled = false,
 }: {
   action: string;
   values?: Record<string, string | boolean>;
@@ -43,24 +48,87 @@ export function Mutation({
   confirm?: string;
   pressed?: boolean;
   ariaLabel?: string;
+  interaction?: InteractionCallbacks;
+  disabled?: boolean;
 }) {
-  const [state, submit, pending] = useActionState(mutate, initial);
+  const [serverState, submit, serverPending] = useActionState(mutate, initial);
+  const core = ["react", "follow", "delete_post", "delete_comment"].includes(
+    action,
+  );
+  const [follow, setFollow] = useState({
+    source: pressed,
+    value: pressed ?? false,
+  });
+  const following =
+    follow.source === pressed ? follow.value : (pressed ?? false);
+  const previousRef = useRef(following);
+  const scope = useFollowScope();
+  const social = useInteraction({
+    start(form) {
+      if (action === "follow") {
+        previousRef.current = following;
+        const enabled = form.get("enabled") === "true";
+        setFollow({ source: pressed, value: enabled });
+        if (scope?.id === values.id) scope.start(enabled);
+      }
+      return interaction?.start?.(form);
+    },
+    async settle(result) {
+      if (action === "follow") {
+        setFollow({
+          source: pressed,
+          value: result.ok
+            ? (result.following ?? previousRef.current)
+            : previousRef.current,
+        });
+        if (scope?.id === values.id) scope.settle(result);
+        if (result.uncertain) {
+          const fresh = await readSocial({ follow: String(values.id) });
+          if (fresh.ok) {
+            setFollow({
+              source: pressed,
+              value: fresh.following ?? previousRef.current,
+            });
+            if (scope?.id === values.id) scope.settle(fresh);
+          }
+        }
+      }
+      await interaction?.settle?.(result);
+    },
+  });
+  const state = core ? social.state : serverState;
+  const pending = core ? social.pending : serverPending;
+  const displayedValues =
+    action === "follow" ? { ...values, enabled: !following } : values;
+  const displayedLabel =
+    action === "follow" ? (following ? "সাথে আছি ✓" : "সাথে থাকি +") : label;
   return (
     <form
       action={submit}
       onSubmit={(e) => {
-        if (confirm && !window.confirm(confirm)) e.preventDefault();
+        if (disabled || pending) {
+          e.preventDefault();
+          return;
+        }
+        if (confirm && !window.confirm(confirm)) {
+          e.preventDefault();
+          return;
+        }
+        if (core) {
+          e.preventDefault();
+          void social.run(new FormData(e.currentTarget));
+        }
       }}
       className={`mutation ${className}`}
     >
       <input type="hidden" name="action" value={action} />
-      {Object.entries(values).map(([key, value]) => (
+      {Object.entries(displayedValues).map(([key, value]) => (
         <input key={key} type="hidden" name={key} value={String(value)} />
       ))}
       {children}
       <button
-        disabled={pending}
-        aria-pressed={pressed}
+        disabled={pending || disabled}
+        aria-pressed={action === "follow" ? following : pressed}
         aria-label={ariaLabel}
         className={
           className.includes("reaction")
@@ -69,7 +137,7 @@ export function Mutation({
         }
         type="submit"
       >
-        {pending ? "একটু…" : label}
+        {pending && !core ? "একটু…" : displayedLabel}
       </button>
       <Result state={state} />
     </form>
@@ -79,14 +147,18 @@ export function Composer({
   prompt = "",
   replyTo,
   standalone = false,
+  interaction,
+  disabled = false,
 }: {
   prompt?: string;
   replyTo?: string;
   standalone?: boolean;
+  interaction?: InteractionCallbacks;
+  disabled?: boolean;
 }) {
   const [body, setBody] = useState(prompt);
   const [mood, setMood] = useState("");
-  const [state, submit, pending] = useActionState(
+  const [serverState, submit, serverPending] = useActionState(
     async (prev: ActionState, data: FormData) => {
       const result = await mutate(prev, data);
       if (result.ok) {
@@ -97,11 +169,40 @@ export function Composer({
     },
     initial,
   );
+  const draftRef = useRef({ body, mood });
+  const social = useInteraction({
+    start(form) {
+      if (interaction?.start?.(form) === false) return false;
+      draftRef.current = { body, mood };
+      setBody("");
+      setMood("");
+    },
+    async settle(result) {
+      if (!result.ok) {
+        setBody(draftRef.current.body);
+        setMood(draftRef.current.mood);
+      }
+      await interaction?.settle?.(result);
+    },
+  });
+  const immediate = !!interaction && !standalone;
+  const pending = immediate ? social.pending : serverPending;
+  const state = immediate ? social.state : serverState;
   const max = replyTo ? 180 : 240;
   const count = charCount(body);
   return (
     <form
       action={submit}
+      onSubmit={(event) => {
+        if (pending || disabled) {
+          event.preventDefault();
+          return;
+        }
+        if (immediate) {
+          event.preventDefault();
+          void social.run(new FormData(event.currentTarget));
+        }
+      }}
       className={`composer ${replyTo ? "reply-composer" : "card"}`}
     >
       <input type="hidden" name="action" value={replyTo ? "comment" : "post"} />
@@ -117,6 +218,7 @@ export function Composer({
       <textarea
         id={replyTo ? "reply" : "post-body"}
         name="body"
+        readOnly={pending}
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder={
@@ -133,6 +235,7 @@ export function Composer({
             <select
               aria-label="মুড বেছে নাও"
               name="mood"
+              disabled={pending}
               value={mood}
               onChange={(e) => setMood(e.target.value)}
             >
@@ -156,7 +259,7 @@ export function Composer({
           <button
             className="button button-primary"
             type="submit"
-            disabled={pending || !body.trim() || count > max}
+            disabled={disabled || pending || !body.trim() || count > max}
           >
             {pending ? "যাচ্ছে…" : replyTo ? "উত্তর দিই" : "বলে ফেলি"}
             <Send size={16} />
