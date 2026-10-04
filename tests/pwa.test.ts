@@ -7,10 +7,109 @@ import {
   INSTALL_PREFERENCE,
   installSuppressed,
   iosSafari,
+  mobileInstallDevice,
   saveInstallPreference,
 } from "../src/lib/pwa";
 
 describe("install preferences and supported instructions", () => {
+  it.each([
+    [
+      "Android phone",
+      "Android Mobile Chrome Safari",
+      "Linux armv8l",
+      5,
+      undefined,
+      true,
+    ],
+    [
+      "Android tablet",
+      "Android Chrome Safari",
+      "Linux aarch64",
+      10,
+      { platform: "Android", mobile: false },
+      true,
+    ],
+    [
+      "Android reduced agent",
+      "Chrome Safari",
+      "Linux",
+      5,
+      { platform: "Android", mobile: false },
+      true,
+    ],
+    [
+      "Android platform fallback",
+      "Chrome Safari",
+      "Android",
+      5,
+      undefined,
+      true,
+    ],
+    [
+      "mobile client hints",
+      "Chrome Safari",
+      "Linux",
+      5,
+      { mobile: true },
+      true,
+    ],
+    ["iPhone", "iPhone Mobile Safari", "iPhone", 5, undefined, true],
+    ["iPad", "iPad Safari", "iPad", 5, undefined, true],
+    [
+      "desktop-like iPadOS",
+      "Macintosh Version/18 Safari",
+      "MacIntel",
+      5,
+      undefined,
+      true,
+    ],
+    [
+      "Windows touchscreen",
+      "Windows Chrome Safari",
+      "Win32",
+      10,
+      { platform: "Windows", mobile: false },
+      false,
+    ],
+    ["Windows Edge", "Windows Edg Safari", "Win32", 0, undefined, false],
+    ["Mac laptop", "Macintosh Safari", "MacIntel", 0, undefined, false],
+    [
+      "Mac Chrome with touch",
+      "Macintosh Chrome/153.0 Safari/537.36",
+      "MacIntel",
+      5,
+      { platform: "macOS", mobile: false },
+      false,
+    ],
+    [
+      "Linux touchscreen",
+      "Linux Chrome Safari",
+      "Linux x86_64",
+      10,
+      undefined,
+      false,
+    ],
+    [
+      "ChromeOS tablet",
+      "CrOS Chrome Safari",
+      "Linux x86_64",
+      10,
+      { platform: "Chrome OS", mobile: false },
+      false,
+    ],
+  ])(
+    "classifies %s without viewport or touch-only guessing",
+    (_name, userAgent, platform, maxTouchPoints, userAgentData, expected) => {
+      expect(
+        mobileInstallDevice({
+          userAgent,
+          platform,
+          maxTouchPoints,
+          userAgentData,
+        }),
+      ).toBe(expected);
+    },
+  );
   it("remembers dismissal for 30 days and installation without storing account data", () => {
     let value = "";
     const storage = {

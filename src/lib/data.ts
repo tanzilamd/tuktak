@@ -200,27 +200,29 @@ export async function people(query = ""): Promise<Profile[]> {
   const { data, error } = await q;
   return checked(data, error) as Profile[];
 }
-export async function topics(): Promise<{ tag: string; count: number }[]> {
-  const client = await db();
-  if (client) {
-    const { data, error } = await client.rpc("popular_topics");
-    return checked(data, error);
-  }
-  const posts = await feed();
-  const counts = new Map<string, number>();
-  for (const p of posts) {
-    const tags = new Set(
-      [...p.body.matchAll(/(?:^|\s)#([\p{L}\p{M}\p{N}_]{1,40})/gu)]
-        .map((m) => m[1].toLowerCase())
-        .slice(0, 5),
-    );
-    for (const tag of tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
-  }
-  return [...counts]
-    .map(([tag, count]) => ({ tag, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 6);
-}
+export const topics = cache(
+  async (): Promise<{ tag: string; count: number }[]> => {
+    const client = await db();
+    if (client) {
+      const { data, error } = await client.rpc("popular_topics");
+      return checked(data, error);
+    }
+    const posts = await feed();
+    const counts = new Map<string, number>();
+    for (const p of posts) {
+      const tags = new Set(
+        [...p.body.matchAll(/(?:^|\s)#([\p{L}\p{M}\p{N}_]{1,40})/gu)]
+          .map((m) => m[1].toLowerCase())
+          .slice(0, 5),
+      );
+      for (const tag of tags) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+    return [...counts]
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+  },
+);
 export async function relationship(id: string) {
   return (await relationships([id])).has(id);
 }

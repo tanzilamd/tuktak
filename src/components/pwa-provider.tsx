@@ -1,7 +1,7 @@
 "use client";
 import { createContext, use, useEffect, useRef, useState } from "react";
 import { installSuppressed, saveInstallPreference } from "@/lib/pwa";
-import { iosSafari } from "@/lib/pwa";
+import { iosSafari, mobileInstallDevice } from "@/lib/pwa";
 type InstallEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
@@ -56,7 +56,12 @@ export function PwaProvider({ children }: { children: React.ReactNode }) {
     }
     function opportunity(event: Event) {
       const installEvent = event as InstallEvent;
-      if (typeof installEvent.prompt !== "function") return;
+      // Leave desktop browser-level installation untouched.
+      if (
+        !mobileInstallDevice(navigator) ||
+        typeof installEvent.prompt !== "function"
+      )
+        return;
       event.preventDefault();
       if (suppressedRef.current || isStandalone()) return;
       eventRef.current = installEvent;

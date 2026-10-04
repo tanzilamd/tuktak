@@ -1,5 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
+async function android(page: Page) {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "userAgentData", {
+      value: { platform: "Android", mobile: false },
+    });
+  });
+}
 async function opportunity(
   page: Page,
   outcome: "accepted" | "dismissed" = "dismissed",
@@ -37,6 +44,122 @@ async function cachePaths(page: Page) {
     return paths.sort();
   });
 }
+test("phone/tablet opportunities promote install; desktops retain native browser control without a card or gap", async ({
+  browser,
+}) => {
+  test.setTimeout(90000);
+  const scenarios = [
+    {
+      name: "Android phone",
+      ua: "Android Mobile Chrome Safari",
+      platform: "Linux armv8l",
+      touch: 5,
+      width: 360,
+      hints: undefined,
+      shown: true,
+    },
+    {
+      name: "Android tablet/foldable",
+      ua: "Android Chrome Safari",
+      platform: "Linux aarch64",
+      touch: 10,
+      width: 1280,
+      hints: undefined,
+      shown: true,
+    },
+    {
+      name: "Android client hints fallback",
+      ua: "Chrome Safari",
+      platform: "Linux",
+      touch: 5,
+      width: 768,
+      hints: { platform: "Android", mobile: false },
+      shown: true,
+    },
+    {
+      name: "Windows Chrome touchscreen",
+      ua: "Windows Chrome Safari",
+      platform: "Win32",
+      touch: 10,
+      width: 320,
+      hints: { platform: "Windows", mobile: false },
+      shown: false,
+    },
+    {
+      name: "Windows Edge",
+      ua: "Windows Chrome Edg Safari",
+      platform: "Win32",
+      touch: 0,
+      width: 1280,
+      hints: undefined,
+      shown: false,
+    },
+    {
+      name: "macOS laptop",
+      ua: "Macintosh Version/18 Safari",
+      platform: "MacIntel",
+      touch: 0,
+      width: 1280,
+      hints: undefined,
+      shown: false,
+    },
+    {
+      name: "Linux desktop",
+      ua: "Linux Chrome Safari",
+      platform: "Linux x86_64",
+      touch: 0,
+      width: 360,
+      hints: undefined,
+      shown: false,
+    },
+    {
+      name: "Mac desktop Chrome with touch",
+      ua: "Macintosh Chrome/153.0 Safari/537.36",
+      platform: "MacIntel",
+      touch: 5,
+      width: 1280,
+      hints: { platform: "macOS", mobile: false },
+      shown: false,
+    },
+  ];
+  for (const device of scenarios) {
+    const context = await browser.newContext({
+      viewport: { width: device.width, height: 900 },
+    });
+    await context.addInitScript(({ ua, platform, touch, hints }) => {
+      Object.defineProperties(navigator, {
+        userAgent: { value: ua },
+        platform: { value: platform },
+        maxTouchPoints: { value: touch },
+        userAgentData: { value: hints },
+      });
+    }, device);
+    const page = await context.newPage();
+    await page.goto("http://localhost:3000/");
+    await ready(page);
+    const prevented = await page.evaluate(() => {
+      const event = new Event("beforeinstallprompt", { cancelable: true });
+      Object.assign(event, {
+        prompt: async () => {},
+        userChoice: Promise.resolve({ outcome: "dismissed" }),
+      });
+      dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    expect(prevented, device.name).toBe(device.shown);
+    await expect(page.locator(".install-card"), device.name).toHaveCount(
+      device.shown ? 1 : 0,
+    );
+    if (!device.shown) {
+      await expect(page.locator(".feed-tabs:visible")).toBeVisible();
+      // The conditional card has no wrapper or placeholder when hidden.
+      expect(
+        await page.locator(".install-card, .install-card-placeholder").count(),
+      ).toBe(0);
+    }
+    await context.close();
+  }
+});
 test("manifest/icons and native Chromium installability checks", async ({
   page,
   request,
@@ -80,6 +203,7 @@ test("card is compact between composer and tabs, accessible in both themes at fo
     "Fictional local account only",
   );
   test.setTimeout(90000);
+  await android(page);
   await page.goto("/login");
   await page.getByLabel("ইমেইল", { exact: true }).fill("rafi@example.invalid");
   await page
@@ -135,6 +259,7 @@ test("card is compact between composer and tabs, accessible in both themes at fo
 test("native prompt only follows a click; decline/dismiss persists across navigation and reload", async ({
   page,
 }) => {
+  await android(page);
   await page.goto("/");
   await opportunity(page);
   expect(
@@ -172,6 +297,7 @@ test("native prompt only follows a click; decline/dismiss persists across naviga
 test("completed installs hide immediately and accepted-choice races do not overwrite installed state", async ({
   page,
 }) => {
+  await android(page);
   await page.goto("/");
   await opportunity(page, "accepted", true);
   await page.getByRole("button", { name: "ইনস্টল করুন", exact: true }).click();
@@ -188,6 +314,7 @@ test("completed installs hide immediately and accepted-choice races do not overw
 test("standalone and unsupported browsers hide the card; blocked storage remains usable", async ({
   page,
 }) => {
+  await android(page);
   await page.addInitScript(() => {
     Object.defineProperty(navigator, "standalone", { value: true });
     Storage.prototype.getItem = () => {
@@ -211,13 +338,15 @@ test("standalone and unsupported browsers hide the card; blocked storage remains
 test("iPhone/iPad Safari shows concise instructions instead of a fake install button", async ({
   browser,
 }) => {
-  for (const device of ["iphone", "ipad"]) {
+  for (const device of ["iphone", "ipad", "ipad-classic"]) {
     const context = await browser.newContext({
       viewport: { width: device === "iphone" ? 320 : 768, height: 900 },
       userAgent:
         device === "iphone"
           ? "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1"
-          : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15",
+          : device === "ipad"
+            ? "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15) AppleWebKit/605.1.15 Version/18.0 Safari/605.1.15"
+            : "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Version/18.0 Mobile/15E148 Safari/604.1",
     });
     if (device === "ipad")
       await context.addInitScript(() => {
@@ -266,6 +395,42 @@ test("iPhone/iPad Safari shows concise instructions instead of a fake install bu
     await page.reload();
     await expect(page.locator(".install-card")).toHaveCount(0);
     await context.close();
+  }
+});
+test("authenticated desktop Home puts tabs directly after composer in both themes", async ({
+  page,
+}) => {
+  test.skip(
+    process.env.LOCAL_SUPABASE_TESTS !== "1",
+    "Fictional local account only",
+  );
+  await page.goto("/login");
+  await page.getByLabel("ইমেইল", { exact: true }).fill("rafi@example.invalid");
+  await page
+    .getByLabel("Password", { exact: true })
+    .fill("Local-only-demo-Password!32");
+  await page.getByRole("button", { name: "ঢুকে পড়ি" }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await opportunity(page);
+  await expect(page.locator(".install-card")).toHaveCount(0);
+  expect(await page.locator(".composer + .feed-tabs").count()).toBe(1);
+  for (const theme of ["light", "dark"]) {
+    await page.evaluate((t) => {
+      document.documentElement.dataset.theme = t;
+    }, theme);
+    await page.evaluate(() => document.fonts.ready);
+    await page.screenshot({
+      path: `test-results/pwa-desktop-${theme}.png`,
+      fullPage: true,
+    });
+    expect(
+      (
+        await new AxeBuilder({ page })
+          .include("#main")
+          .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+          .analyze()
+      ).violations,
+    ).toEqual([]);
   }
 });
 test("real offline fallback/font works, retry reconnects, and only generic resources are cached", async ({
