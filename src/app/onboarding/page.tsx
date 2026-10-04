@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Onboarding } from "@/components/onboarding";
-import { requireViewer } from "@/lib/data";
+import { requireViewer, onboardingComplete } from "@/lib/data";
 export const metadata = { title: "তোমার মতো করে", robots: { index: false } };
 export default async function Page() {
   const v = await requireViewer();
+  if (await onboardingComplete()) redirect("/settings/profile");
   return (
     <section className="card content-card">
       <span className="eyebrow">স্বাগতম, নতুন আড্ডাবাজ 🌱</span>

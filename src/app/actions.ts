@@ -21,7 +21,12 @@ export async function mutate(
   const schema = commandSchemas[action as keyof typeof commandSchemas];
   if (!schema) return fail("অনুরোধটি সঠিক নয়।");
   const raw: Record<string, unknown> = Object.fromEntries(form.entries());
-  for (const name of ["enabled", "institution_visible", "discoverable"]) {
+  for (const name of [
+    "enabled",
+    "institution_visible",
+    "discoverable",
+    "onboarding",
+  ]) {
     if (form.has(name))
       raw[name] = form.get(name) === "true" || form.get(name) === "on";
     else if (action === "profile") raw[name] = false;
@@ -44,6 +49,8 @@ export async function mutate(
     payload: parsed.data,
   });
   if (error) {
+    if (action === "profile" && error.message.includes("onboarding_complete"))
+      redirect("/settings/profile");
     if (error.message.includes("rate_limit"))
       return fail("একটু বিরতি নিই? ১০ মিনিট পরে আবার চেষ্টা করো।");
     if (error.message.includes("duplicate_content"))

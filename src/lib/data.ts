@@ -3,7 +3,14 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { db } from "./supabase";
 import { demoPosts, demoProfiles } from "./demo";
-import type { Profile, Post, Comment, Viewer } from "./types";
+import type { Profile, Post, PostStats, Comment, Viewer } from "./types";
+type PostRow = Omit<Post, keyof PostStats>;
+function popularPosts(posts: Post[]) {
+  const total = (post: Post) =>
+    Object.values(post.reaction_counts).reduce((sum, count) => sum + count, 0);
+  // Stable sort keeps the existing chronological order when totals tie.
+  return [...posts].sort((a, b) => total(b) - total(a)).slice(0, 5);
+}
 export const PUBLIC_PROFILE =
   "id,username,display_name,bio,education,institution,class_year,ssc_batch,hsc_batch,hobbies,status,accent,discoverable,created_at";
 export const POST_SELECT = `id,author_id,body,mood,created_at,profiles!posts_author_id_fkey(${PUBLIC_PROFILE})`;
@@ -60,7 +67,7 @@ export async function feed(
       posts = posts.filter((p) =>
         p.body.toLowerCase().includes("#" + options.tag!.toLowerCase()),
       );
-    return posts;
+    return options.popular ? popularPosts(posts) : posts;
   }
   const v = await viewer();
   let q = client
@@ -115,33 +122,18 @@ export async function feed(
     q = q.in("author_id", data?.map((p) => p.id) ?? []);
   }
   const { data, error } = await q;
-  let posts = await withStats(checked(data, error) as unknown as Post[]);
-  if (options.popular)
-    posts = posts
-      .sort((a, b) => b.reactions.length - a.reactions.length)
-      .slice(0, 5);
-  return posts;
+  const posts = await withStats(checked(data, error) as unknown as PostRow[]);
+  return options.popular ? popularPosts(posts) : posts;
 }
-async function withStats(posts: Post[]): Promise<Post[]> {
+async function withStats(posts: PostRow[]): Promise<Post[]> {
   if (!posts.length) return [];
   const client = (await db())!;
   const { data, error } = await client.rpc("post_stats", {
     ids: posts.map((p) => p.id),
   });
-  const stats = checked(data, error) as Record<
-    string,
-    {
-      reaction_counts: Record<string, number>;
-      current_reaction: string | null;
-      comment_count: number;
-    }
-  >;
-  return posts.map((p) => ({
-    ...p,
-    reactions: [],
-    comments: [],
-    ...stats[p.id],
-  }));
+  const stats = checked(data, error) as Record<string, PostStats>;
+  // Visibility/deletion may change between the row query and the aggregate RPC.
+  return posts.flatMap((p) => (stats[p.id] ? [{ ...p, ...stats[p.id] }] : []));
 }
 export async function getPost(id: string) {
   const client = await db();
@@ -151,7 +143,7 @@ export async function getPost(id: string) {
     .select(POST_SELECT)
     .eq("id", id)
     .maybeSingle();
-  const post = checked(data, error) as unknown as Post | null;
+  const post = checked(data, error) as unknown as PostRow | null;
   return post ? (await withStats([post]))[0] : undefined;
 }
 export async function getProfile(username: string) {
@@ -227,17 +219,19 @@ export async function topics(): Promise<{ tag: string; count: number }[]> {
     .slice(0, 6);
 }
 export async function relationship(id: string) {
+  return (await relationships([id])).has(id);
+}
+export async function relationships(ids: string[]): Promise<Set<string>> {
+  if (!ids.length) return new Set();
   const v = await viewer();
   const client = await db();
-  if (!v || !client) return false;
+  if (!v || !client) return new Set();
   const { data, error } = await client
     .from("follows")
     .select("following_id")
     .eq("follower_id", v.id)
-    .eq("following_id", id)
-    .maybeSingle();
-  checked(data, error);
-  return !!data;
+    .in("following_id", [...new Set(ids)]);
+  return new Set(checked(data, error)!.map((row) => row.following_id));
 }
 export async function followList(id: string, kind: "followers" | "following") {
   const client = await db();
@@ -262,6 +256,16 @@ export async function privateSettings() {
     .eq("user_id", v.id)
     .single();
   return checked(data, error);
+}
+export async function onboardingComplete() {
+  const v = await requireViewer();
+  const client = (await db())!;
+  const { data, error } = await client
+    .from("account_private")
+    .select("onboarding_complete")
+    .eq("user_id", v.id)
+    .single();
+  return checked(data, error).onboarding_complete as boolean;
 }
 export async function safetyList(kind: "blocks" | "mutes") {
   await requireViewer();

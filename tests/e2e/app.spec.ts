@@ -143,6 +143,16 @@ test("following, block/unblock, reports and private settings in dark mode", asyn
   await expect(page.locator("main")).not.toContainText("example.invalid");
   await page.getByRole("button", { name: "সাথে থাকি +" }).click();
   await expect(page.getByRole("button", { name: "সাথে আছি ✓" })).toBeVisible();
+  await page.goto("/discover?q=mithi");
+  await expect(
+    page.getByRole("button", { name: "সাথে আছি ✓" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.goto("/u/rafi/following");
+  await expect(
+    page.getByRole("button", { name: "সাথে আছি ✓" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.goto("/u/mithi/followers");
+  await expect(page.locator(".people-grid")).toContainText("রাফি আহমেদ");
   await page.goto("/?feed=following");
   await expect(page.getByText("আজকে alarm", { exact: false })).toBeVisible();
   await page.goto("/u/mithi");
@@ -230,5 +240,114 @@ test("moderation dashboard, audit, admin role management and suspension", async 
     sql(
       "update user_roles set role='user' where user_id in ('00000000-0000-4000-8000-000000000001','00000000-0000-4000-8000-000000000003')",
     );
+  }
+});
+
+for (const visible of [false, true]) {
+  test(`returning onboarding preserves saved profile fields and institution visibility=${visible}`, async ({
+    page,
+  }) => {
+    test.skip(
+      process.env.LOCAL_SUPABASE_TESTS !== "1",
+      "Disposable local stack only",
+    );
+    const id = "00000000-0000-4000-8000-000000000001";
+    const sql = (statement: string) =>
+      execFileSync(
+        "docker",
+        [
+          "exec",
+          "tuktak-test-db-1",
+          "psql",
+          "-U",
+          "postgres",
+          "-v",
+          "ON_ERROR_STOP=1",
+          "-Atc",
+          statement,
+        ],
+        { encoding: "utf8" },
+      ).trim();
+    const snapshotSQL = `select jsonb_build_object('profile',row_to_json(p),'private',jsonb_build_object('institution',a.institution,'institution_visible',a.institution_visible,'onboarding_complete',a.onboarding_complete)) from profiles p join account_private a on a.user_id=p.id where p.id='${id}'`;
+    const original = JSON.parse(sql(snapshotSQL));
+    const literal = (value: unknown) =>
+      "'" + JSON.stringify(value).replaceAll("'", "''") + "'::jsonb";
+    try {
+      sql(
+        `update profiles set education='স্কুলে পড়ি',class_year='দশম',ssc_batch='2027',hsc_batch='2029',bio='আগের নিজের কথা',hobbies=array['বই'],status='🌱',institution=${visible ? "'আগের স্কুল'" : "null"},institution_key=${visible ? "'আগের স্কুল'" : "null"} where id='${id}'; update account_private set institution='আগের স্কুল',institution_visible=${visible},onboarding_complete=true where user_id='${id}'`,
+      );
+      const saved = JSON.parse(sql(snapshotSQL));
+      await login(page);
+      await page.goto("/onboarding");
+      await expect(page).toHaveURL(/\/settings\/profile$/);
+      await expect(
+        page.getByLabel("প্রতিষ্ঠান · পুরোপুরি ঐচ্ছিক", { exact: true }),
+      ).toHaveValue("আগের স্কুল");
+      await expect(
+        page.getByLabel("ক্লাস · ঐচ্ছিক", { exact: true }),
+      ).toHaveValue("দশম");
+      await expect(
+        page.getByLabel("SSC batch · ঐচ্ছিক", { exact: true }),
+      ).toHaveValue("2027");
+      const checkbox = page.getByLabel(
+        "প্রোফাইলে দেখাও ও প্রতিষ্ঠানের আড্ডায় যোগ দাও",
+        { exact: true },
+      );
+      if (visible) await expect(checkbox).toBeChecked();
+      else await expect(checkbox).not.toBeChecked();
+      expect(await page.content()).not.toContain("+8801700000000");
+      expect(JSON.parse(sql(snapshotSQL))).toEqual(saved);
+    } finally {
+      sql(
+        `update profiles p set (education,class_year,ssc_batch,hsc_batch,bio,hobbies,status,institution,institution_key)=(select x.education,x.class_year,x.ssc_batch,x.hsc_batch,x.bio,x.hobbies,x.status,x.institution,x.institution_key from jsonb_populate_record(null::profiles,${literal(original.profile)}) x) where p.id='${id}'; update account_private a set (institution,institution_visible,onboarding_complete)=(select x.institution,x.institution_visible,x.onboarding_complete from jsonb_populate_record(null::account_private,${literal(original.private)}) x) where a.user_id='${id}'`,
+      );
+    }
+  });
+}
+
+test("Discover ranks older posts with more aggregate reactions above newer posts", async ({
+  page,
+}) => {
+  test.skip(
+    process.env.LOCAL_SUPABASE_TESTS !== "1",
+    "Disposable local stack only",
+  );
+  const high = "20000000-0000-4000-8000-000000000001";
+  const low = "20000000-0000-4000-8000-000000000002";
+  const sql = (statement: string) =>
+    execFileSync(
+      "docker",
+      [
+        "exec",
+        "tuktak-test-db-1",
+        "psql",
+        "-U",
+        "postgres",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        statement,
+      ],
+      { stdio: "pipe" },
+    );
+  try {
+    sql(
+      `insert into posts(id,author_id,body,created_at) values('${high}','00000000-0000-4000-8000-000000000001','আগের জনপ্রিয় কথা',now()-interval '1 minute'),('${low}','00000000-0000-4000-8000-000000000001','নতুন কম প্রতিক্রিয়ার কথা',now()); insert into reactions(post_id,user_id,kind) select '${high}',id,case when username='mithi' then 'haha' else 'love' end from profiles; insert into reactions(post_id,user_id,kind) values('${low}','00000000-0000-4000-8000-000000000002','love'),('${low}','00000000-0000-4000-8000-000000000003','fire')`,
+    );
+    await page.goto("/discover");
+    await expect(
+      page.getByText("আগের জনপ্রিয় কথা", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("নতুন কম প্রতিক্রিয়ার কথা", { exact: true }),
+    ).toBeVisible();
+    const bodies = await page
+      .locator(".post-list .post-body")
+      .allTextContents();
+    expect(bodies.indexOf("আগের জনপ্রিয় কথা")).toBeLessThan(
+      bodies.indexOf("নতুন কম প্রতিক্রিয়ার কথা"),
+    );
+  } finally {
+    sql(`delete from posts where id in ('${high}','${low}')`);
   }
 });

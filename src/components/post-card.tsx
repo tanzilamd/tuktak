@@ -80,14 +80,8 @@ export function PostCard({
       <div className="post-actions">
         <div className="reactions">
           {REACTIONS.map((r) => {
-            const count =
-              post.reaction_counts?.[r.key] ??
-              post.reactions.filter((v) => v.kind === r.key).length;
-            const selected =
-              post.current_reaction === r.key ||
-              post.reactions.some(
-                (v) => v.kind === r.key && v.user_id === viewer?.id,
-              );
+            const count = post.reaction_counts[r.key] ?? 0;
+            const selected = post.current_reaction === r.key;
             const label = `${r.emoji} ${bn(count)}`;
             return viewer ? (
               <Mutation
@@ -116,10 +110,10 @@ export function PostCard({
         <Link
           className="reply-link"
           href={`/post/${post.id}`}
-          aria-label={`${bn(post.comment_count ?? post.comments.length)}টি উত্তর`}
+          aria-label={`${bn(post.comment_count)}টি উত্তর`}
         >
           <MessageCircle size={17} />
-          <span>{bn(post.comment_count ?? post.comments.length)}</span>
+          <span>{bn(post.comment_count)}</span>
         </Link>
         {!detail && (
           <Link

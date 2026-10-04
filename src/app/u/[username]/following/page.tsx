@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getProfile, followList, viewer, relationship } from "@/lib/data";
+import { getProfile, followList, viewer, relationships } from "@/lib/data";
 import { PersonCard } from "@/components/post-card";
 import { Empty } from "@/components/empty";
 export default async function Page({
@@ -13,22 +13,21 @@ export default async function Page({
     viewer(),
     followList(p.id, "following"),
   ]);
+  const following = await relationships(list.map((p) => p.id));
   return (
     <>
       <div className="page-top">
         <h1>যাদের সাথে আছি</h1>
       </div>
       <div className="people-grid">
-        {await Promise.all(
-          list.map(async (p) => (
-            <PersonCard
-              key={p.id}
-              profile={p}
-              viewer={v}
-              following={await relationship(p.id)}
-            />
-          )),
-        )}
+        {list.map((p) => (
+          <PersonCard
+            key={p.id}
+            profile={p}
+            viewer={v}
+            following={following.has(p.id)}
+          />
+        ))}
       </div>
       {!list.length && <Empty text="আড্ডা থেকে পরিচয়, পরিচয় থেকে বন্ধুত্ব।" />}
     </>

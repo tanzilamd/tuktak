@@ -57,6 +57,7 @@ export const profileSchema = z.object({
   status: short(12),
   accent: z.enum(ACCENTS),
   discoverable: z.boolean(),
+  onboarding: z.boolean().optional(),
 });
 const id = z.string().uuid();
 export const commandSchemas = {

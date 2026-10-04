@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { people, viewer, feed, topics, relationship } from "@/lib/data";
+import { people, viewer, feed, topics, relationships } from "@/lib/data";
 import { PersonCard, PostCard } from "@/components/post-card";
 import { Empty } from "@/components/empty";
 export const metadata = { title: "খুঁজে দেখি" };
@@ -16,6 +16,7 @@ export default async function Page({
     feed({ popular: true }),
     topics(),
   ]);
+  const following = await relationships(users.map((p) => p.id));
   return (
     <>
       <div className="page-top">
@@ -42,16 +43,14 @@ export default async function Page({
         {q ? `“${q}” দিয়ে খুঁজে পেলাম` : "নতুন মানুষ, নতুন গল্প"}
       </h2>
       <div className="people-grid">
-        {await Promise.all(
-          users.map(async (p) => (
-            <PersonCard
-              key={p.id}
-              profile={p}
-              viewer={v}
-              following={await relationship(p.id)}
-            />
-          )),
-        )}
+        {users.map((p) => (
+          <PersonCard
+            key={p.id}
+            profile={p}
+            viewer={v}
+            following={following.has(p.id)}
+          />
+        ))}
       </div>
       {!users.length && (
         <Empty

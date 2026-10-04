@@ -99,9 +99,13 @@ export const demoPosts: Post[] = bodies.map((body, i) => ({
   ][i],
   created_at: new Date(Date.UTC(2026, 9, 4, 9, 30 - i * 25)).toISOString(),
   profiles: demoProfiles[i],
-  reactions: Array.from({ length: 7 - i }, (_, j) => ({
-    user_id: `demo-${j}`,
-    kind: ["love", "haha", "relate", "fire"][j % 4],
-  })),
-  comments: [],
+  reaction_counts: Array.from(
+    { length: 7 - i },
+    (_, j) => ["love", "haha", "relate", "fire"][j % 4],
+  ).reduce<Record<string, number>>((counts, kind) => {
+    counts[kind] = (counts[kind] ?? 0) + 1;
+    return counts;
+  }, {}),
+  current_reaction: null,
+  comment_count: 0,
 }));
