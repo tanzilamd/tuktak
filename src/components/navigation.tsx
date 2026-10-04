@@ -38,7 +38,7 @@ export function Navigation({ viewer }: { viewer: Viewer | null }) {
           {BRAND.name}
           <span className="brand-dot">✦</span>
         </Link>
-        <p className="brand-tagline">ছোট্ট কথায়, অনেকটা আমরা।</p>
+        <p className="brand-tagline">কথা জমাইও না।</p>
         <nav aria-label="প্রধান নেভিগেশন" className="desktop-nav">
           {items.map(({ href, label, Icon }) => (
             <Link

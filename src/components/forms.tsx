@@ -120,9 +120,7 @@ export function Composer({
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder={
-          replyTo
-            ? "প্রথম কথাটা তুমি বলবে?"
-            : "কোনো ছোট্ট গল্প, বড় একটা দীর্ঘশ্বাস…"
+          replyTo ? "প্রথম কথাটা তুমি বলবে?" : "আজকের আজাইরা ভাবনা কী?"
         }
         rows={replyTo ? 2 : 3}
         required

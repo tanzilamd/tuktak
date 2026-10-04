@@ -1,7 +1,7 @@
 export const BRAND = {
   name: "টুকটাক",
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "",
-  tagline: "মাথায় যা, ২৪০-এর মাঝে তা।",
+  tagline: "কথা জমাইও না।",
   description:
     "বাংলাদেশের শিক্ষার্থীদের জন্য ২৪০ অক্ষরের বাংলা social network।",
 };
