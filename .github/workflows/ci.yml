@@ -16,6 +16,14 @@ jobs:
       - run: npm test
       - run: npm audit --omit=dev --audit-level=moderate
       - run: npm run local:start
+      - name: Verify repeat startup without ripgrep
+        run: |
+          rg() { echo 'Local startup must not require ripgrep' >&2; return 127; }
+          export -f rg
+          before="$(docker exec tuktak-test-db-1 psql -U postgres -Atc 'select count(*) from public.profiles')"
+          npm run local:start
+          after="$(docker exec tuktak-test-db-1 psql -U postgres -Atc 'select count(*) from public.profiles')"
+          test "$before" = "$after"
       - run: npm run build
       - run: |
           npm start > /tmp/tuktak-server.log 2>&1 &

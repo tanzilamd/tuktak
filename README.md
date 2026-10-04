@@ -4,6 +4,8 @@
 
 ## Start here
 
+Production is [tuktakbd.vercel.app](https://tuktakbd.vercel.app), deployed from `main` in `tanzilamd/tuktak` through the connected Vercel project. Its Supabase project reference is `guqzypztckfnapmptjpu` (a public identifier). Production credentials live in secure provider/environment settings. Read [AGENTS.md](AGENTS.md) for permanent product/UI/security rules and the future-feature checklist before modifying the project.
+
 - [HANDOFF.md](HANDOFF.md): owner checklist, exact Supabase setup and Vercel deployment.
 - [SECURITY.md](SECURITY.md): authorization, privacy, threat boundaries and operations.
 - [supabase/migrations/](supabase/migrations/): ordered schema, RLS and RPC migrations; apply the entire chain, including the pre-production guards.
@@ -60,7 +62,7 @@ npx supabase db reset
 npm run dev
 ```
 
-`db reset` applies the migrations and `supabase/seed.sql`; it deletes local database data. The checked-in config enables email verification and contains no storage buckets. Standard local inbox port is 54324. The smaller stack above is the workflow validated in this cloud workspace; the standard CLI stack could not start here due to Docker disk capacity.
+`db reset` applies the migrations and `supabase/seed.sql`; it deletes local database data. The checked-in config enables email verification and contains no storage buckets. Standard local inbox port is 54324. The CLI also requires a writable per-user configuration directory: this managed cloud run rejected even `--help` while saving telemetry to its read-only home. Use a writable owner terminal for hosted CLI operations, or the trusted SQL Editor/authorized Management API workflow in HANDOFF; do not repurpose `HOME` or bypass filesystem/TLS policy. The smaller stack above is the workflow validated in this cloud workspace; the standard CLI stack could not start here due to Docker disk capacity.
 
 ## Environment values
 
@@ -79,6 +81,8 @@ No service-role key or database password is used by the application. Supabase SM
 Enable Turnstile in **Supabase Auth CAPTCHA settings**, put its secret there, and set only the site key in the app. The configured GoTrue integration validates CAPTCHA server-side, including direct Auth API requests. Leave the site key unset for local development. Google OAuth and phone OTP are future integrations, not enabled in V1.
 
 ## Commands and checks
+
+Format changed supported files with `npx prettier --write` followed by `npx prettier --check` and their file paths. SQL retains the committed migration style; use `bash -n scripts/local/start.sh` for shell syntax. The root agent file defines the feature/release checks.
 
 ```sh
 npm run lint             # React, Hooks and TypeScript lint rules
@@ -112,7 +116,7 @@ All primary screens, empty/loading/error states, adaptive profiles, in-app notif
 
 ## First administrator
 
-See the exact guarded SQL in [HANDOFF.md](HANDOFF.md). The owner must create and verify their account first, then run the bootstrap from the Supabase SQL editor as the database owner. No email is hardcoded in application code. Other moderator roles are managed through `/admin`, with database authorization and audit entries.
+Use the guarded owner-console [first-admin.sql](scripts/production/first-admin.sql) following [HANDOFF.md](HANDOFF.md). The owner must create and verify their account first, then run the bootstrap from the Supabase SQL editor as the database owner. No email is hardcoded in application code. Other moderator roles are managed through `/admin`, with database authorization and audit entries.
 
 ## Deployment
 
@@ -136,7 +140,9 @@ Use TLS termination, preserve the canonical host/forwarded host, and do not cach
 - **Registration fails:** username may be taken/reserved; phone must be a valid BD mobile number; inspect Supabase Auth logs privately if needed. The signup trigger must exist before registration.
 - **No verification email:** check inbox/spam, enable confirmation, set redirect URLs and configure custom SMTP for production. Supabase default email service is not suitable for public-launch delivery.
 - **Expired callback:** request a new email/recovery link; complete PKCE links in the browser used to start the flow. Callback origin uses the configured canonical site URL.
-- **Rate limit:** wait ten minutes. Production Auth has its own independent limits/CAPTCHA settings.
+- **Rate limit:** application command limits use ten-minute windows; Supabase Auth has independent email/password/IP limits and CAPTCHA. Inspect the provider error/log privately and follow its retry window; application success/failure copy alone does not diagnose SMTP or provider throttling.
+- **Account lookup failed:** compare Auth, public profile, private account and role integrity. Manually deleting a profile leaves Auth behind while private/role rows cascade away. This is not evidence of signup-trigger failure; do not automatically repair deliberately removed accounts.
+- **CI startup fails / role already exists:** the startup script must not depend on ripgrep being installed. Read the exact failing command and container health/logs; a warmed local database alone does not prove fresh CI startup. See current evidence and failure-diagnostic procedure in [VALIDATION.md](VALIDATION.md).
 - **Docker disk/registry failure:** use the small local stack; do not disable TLS/checksums. In this workspace browser downloads were denied, so tests use npm-distributed packaged Chromium.
 - **Local DB changed:** add a forward migration and run `npm run local:start`. If history checks fail, inspect the discrepancy; do not rewrite applied files or reset real data.
 

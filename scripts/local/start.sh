@@ -8,7 +8,8 @@ for _ in $(seq 1 30); do
  if docker exec tuktak-test-db-1 pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1; then break; fi
  sleep 1
 done
-if ! docker exec tuktak-test-db-1 psql -U postgres -Atc "select 1 from pg_roles where rolname='supabase_auth_admin'" | rg -q 1; then
+role_exists="$(docker exec tuktak-test-db-1 psql -U postgres -v ON_ERROR_STOP=1 -Atc "select 1 from pg_roles where rolname='supabase_auth_admin'")"
+if [ "$role_exists" != '1' ]; then
  docker exec -i tuktak-test-db-1 psql -U postgres -v ON_ERROR_STOP=1 < scripts/local/bootstrap.sql
 fi
 docker compose -p tuktak-test -f scripts/local/compose.yml up -d auth rest
@@ -18,7 +19,8 @@ for _ in $(seq 1 30); do
 done
 curl --fail --silent http://127.0.0.1:55499/health >/dev/null
 fresh_schema=false
-if ! docker exec tuktak-test-db-1 psql -U postgres -Atc "select coalesce(to_regclass('public.profiles')::text,'')" | rg -q profiles; then
+existing_schema="$(docker exec tuktak-test-db-1 psql -U postgres -v ON_ERROR_STOP=1 -Atc "select coalesce(to_regclass('public.profiles')::text,'')")"
+if [ "$existing_schema" != 'profiles' ]; then
  fresh_schema=true
 fi
 docker exec tuktak-test-db-1 psql -U postgres -v ON_ERROR_STOP=1 -c 'grant usage on schema auth to anon,authenticated; grant execute on function auth.uid() to anon,authenticated;' >/dev/null

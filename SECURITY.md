@@ -26,7 +26,7 @@ All 15 application tables enable RLS. Direct table insert/update/delete grants a
 
 RLS exposes public profiles/posts only under current visibility/block/suspension rules. Child rows are constrained by visible parent posts and actor visibility. Private accounts and roles are own-account only. Reports/audits are staff-only. Blocks and mutes are readable only by their initiator. `safety_accounts()` exposes only public names of the caller's own safety-list entries; `admin_accounts()` returns limited account/role information only after a fresh admin check. Neither returns Auth/private data.
 
-The first admin is bootstrapped deliberately by the database owner with guarded console SQL and an audit record, documented in HANDOFF. Do not grant browsers `service_role`, expose a privileged database URL, or bypass RLS with a server-side service key.
+The first admin is bootstrapped deliberately by the database owner with guarded console SQL and an audit record, in `scripts/production/first-admin.sql`, documented in HANDOFF. It requires a complete verified unsuspended account and refuses to overwrite an existing admin. Do not grant browsers `service_role`, expose a privileged database URL, or bypass RLS with a server-side service key.
 
 ## Privacy boundaries
 
@@ -77,7 +77,9 @@ Run `npm audit` and `npm audit --omit=dev --audit-level=moderate`, review adviso
 5. Notify affected users through an appropriate private operational channel and follow applicable notification obligations. Publish no private report/user data.
 6. Review backup recovery, log retention, account-abuse defenses and how the incident occurred.
 
-Automated tests exercise real PostgreSQL semantics via PGlite and a local PostgreSQL/Auth/PostgREST stack. Hosted Supabase RLS, SMTP, Vercel configuration and actual mobile devices still require the owner acceptance checks in HANDOFF before public launch.
+Automated tests exercise PostgreSQL semantics through PGlite and the real local PostgreSQL/Auth/PostgREST stack. Hosted schema/RLS/migration and private-phone boundaries, Vercel and dedicated production moderation/social flows have also received verification; Auth email delivery was owner-confirmed. See `VALIDATION.md` for current versus historical evidence and remaining provider/inbox/real-device checks. Recheck security after changes; a prior pass or a local suite is not a permanent hosted guarantee.
+
+Auth session cookies use `Secure` when the configured canonical site is HTTPS, consistently in server actions/callbacks and the refresh proxy. HTTP loopback development retains non-Secure cookies. Existing cookies receive the updated attributes on sign-in/refresh; verify with a fresh designated session after deployment. Preserve the Supabase SSR cookie encoding/session flow and private/no-store responses.
 
 ## Optimistic social endpoint
 

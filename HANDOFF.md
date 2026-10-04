@@ -1,23 +1,32 @@
 # Owner handoff — টুকটাক
 
-The application and local development workflow are implemented. The owner has deployed `https://tuktakbd.vercel.app` and confirmed a fresh production signup → confirmation → verification → onboarding flow. The original two migrations are recorded in production; subsequent migrations must be applied forward without resetting or seeding. [VALIDATION.md](VALIDATION.md) records checks and their limits.
+The application is deployed and the local development workflow is implemented. Treat this file as production operations guidance; [AGENTS.md](AGENTS.md) owns permanent development rules and [VALIDATION.md](VALIDATION.md) separates current checks, historical evidence and unverified items.
 
-## What you need to supply
+## Current production
 
-- [ ] A Supabase project in your own account.
-- [ ] A Vercel project linked to `tanzilamd/tuktak` (repository root).
-- [ ] A verified owner/admin account.
-- [ ] A production app origin (a Vercel domain is sufficient; custom domain is optional).
-- [ ] Production SMTP configuration and sender/domain verification for reliable Auth emails.
+| Setting                          | Intended value                                                                |
+| -------------------------------- | ----------------------------------------------------------------------------- |
+| Repository / production branch   | `tanzilamd/tuktak` / `main`                                                   |
+| Production URL                   | `https://tuktakbd.vercel.app`                                                 |
+| Supabase project reference / URL | `guqzypztckfnapmptjpu` / `https://guqzypztckfnapmptjpu.supabase.co`           |
+| Deployment source                | Connected GitHub → Vercel project; pushes to `main` trigger production builds |
+| Migration history                | `202610040001`, `20261004000200`, `20261004000300`                            |
+
+All three migrations were applied and their stored sources/catalog checked against Git. Production signup/confirmation/onboarding, private-phone protection, dedicated admin/moderation and social-interaction flows have received verification. Auth email delivery was owner-confirmed; SMTP credentials/configuration remain owner-managed. None of this is a permanent guarantee: recheck the affected flows after each change. An existing admin is already bootstrapped; do not run first-admin setup again or recreate/reset this project.
+
+## Owner responsibilities and new-environment prerequisites
+
+- Existing production Supabase/Vercel resources are listed above. Create separate resources only for a deliberately new/staging environment.
+- Preserve the verified owner/admin account, canonical origin and custom SMTP integration. Verify SMTP sender/domain, delivery and quotas with mailboxes you own; the app does not provision or operate your mail service.
 - [ ] An operator support/appeals contact and a staffed moderation process; set `NEXT_PUBLIC_SUPPORT_EMAIL` to a public operator mailbox before public launch.
 - [ ] Review the privacy/community policy for your operation, especially retention and student safety.
 - [ ] Optional: Turnstile keys, DNS access for a custom domain, backup/monitoring settings appropriate to usage.
 
 Do not post any secret in GitHub issues, chat, screenshots, source files or client code.
 
-## 1. Create Supabase and apply the schema
+## 1. Verify an existing project or initialize a new one
 
-1. Create a new Supabase project. Choose a suitable nearby region and save the generated **database password privately**.
+1. For current production, verify the project reference above before any command; inspect native history and take an appropriate recoverable backup before changes. For a new environment only, create a separate project in a suitable nearby region and save its **database password privately**.
 2. Open **Project Settings → API / API Keys**. Record the project URL and **publishable key** (or legacy **anon** key). These two values are public safe. **Do not use service-role or secret API keys.**
 3. For a fresh project, apply the entire ordered chain: `202610040001_core.sql`, `20261004000200_preproduction_guards.sql`, then `20261004000300_auth_phone_privacy.sql` under `supabase/migrations/`. The first creates the 15-table schema and RLS/RPCs. The second enforces null-safe deletion consent and stale-onboarding protection. The third prevents GoTrue from restoring phone metadata after signup and cleans existing metadata only where private phone storage already exists. For an existing project, inspect native migration history and apply only pending files; preserve all accounts/data and original version records. There is no media bucket.
 4. Do **not** run `supabase/seed.sql` in production. It contains only development users with shared development passwords.
@@ -41,12 +50,17 @@ npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
 
-Use **either** SQL Editor **or** CLI-managed migrations. `db push` applies the full pending chain. If you initially use SQL Editor and later adopt CLI, mark each migration as applied only after verifying that its complete contents were run:
+Prefer the locked CLI's ordered migration workflow. Inspect `npx supabase migration list` and `npx supabase db push --dry-run` before applying pending files. Current production already has native records: do not run migration repair, replace statements or mark versions applied without executing them. Adopting historically untracked SQL requires a separate reviewed owner operation, complete source/catalog verification and explicit authorization; it is not normal deployment.
 
-```sh
-npx supabase migration repair --status applied 202610040001
-npx supabase migration repair --status applied 20261004000200
+Read-only native history check in the intended project's SQL Editor:
+
+```sql
+select version, name
+from supabase_migrations.schema_migrations
+order by version;
 ```
+
+Expect all three versions listed above. A version record alone is insufficient: compare its stored `statements` to the committed file and verify the changed tables/constraints/policies/functions/triggers. Never print private table contents, credentials or Auth tokens as part of this check.
 
 Never use `db reset` against production. After initial deployment, add new migration files; do not edit already-applied migrations or reset real accounts. The fictional local stack's `tuktak_local.migrations` ledger is not the hosted migration workflow; do not create it on production.
 
@@ -62,8 +76,8 @@ In **Authentication → Providers / Sign In**, enable email/password and **Confi
 
 In **Authentication → URL Configuration**:
 
-- **Site URL**: your canonical app origin, e.g. `https://YOUR_APP.vercel.app`.
-- **Redirect URLs**: `https://YOUR_APP.vercel.app/auth/callback`, `https://YOUR_APP.vercel.app/reset-password`.
+- **Site URL**: `https://tuktakbd.vercel.app` for current production.
+- **Redirect URLs**: `https://tuktakbd.vercel.app/auth/callback`, `https://tuktakbd.vercel.app/reset-password`. Use the equivalent exact origins for deliberately separate deployments.
 - For local development with this hosted project: add `http://localhost:3000/auth/callback` and `http://localhost:3000/reset-password`.
 - For staging: add exact staging origins; keep production and staging data separate. Avoid broad wildcard production redirects.
 
@@ -96,8 +110,8 @@ Register a test account, verify its email, and exercise the acceptance checklist
 
 ## 4. Deploy to Vercel
 
-1. Push the implementation branch using the commands below. The cloud work includes local incremental commits; it has not pushed to GitHub. If the branch is `work`, select it for staging or merge it into your chosen production branch before deploying.
-2. In Vercel, **Add New → Project → Import** `tanzilamd/tuktak`. Root directory: repository root. Framework: **Next.js**. Node.js: **24**.
+1. Current production builds come from `main`; work is already pushed. Push only when the task explicitly authorizes it, after checking branch/remote/clean tree, committed build state and secrets. Use a PR/Preview for unapproved production work; never force-push.
+2. Verify the existing connected Vercel project; import `tanzilamd/tuktak` only for a new project. Root directory: repository root. Framework: **Next.js**. Node.js: **24**.
 3. Install command: `npm ci`. Build command: `npm run build`. Keep the framework's output-directory default.
 4. Add the three required **public safe** environment values for the correct environment (Production and separately Preview): Supabase URL, publishable key and canonical `NEXT_PUBLIC_SITE_URL`. Set the site URL to your app's chosen Vercel origin; do not leave localhost or use an unrelated preview URL. Add the optional Turnstile site key only if Supabase CAPTCHA is enabled, and set `NEXT_PUBLIC_SUPPORT_EMAIL` to a public support/appeals mailbox.
 5. If using this cloud machine with a hosted project, add the exact `YOUR_PROJECT_REF.supabase.co` hostname to its environment network allowlist. Deployment CLI access additionally needs your provider's API/auth domains. Deploy. If you changed any `NEXT_PUBLIC_` values after a build, **redeploy**; Next.js inlines these values.
@@ -109,7 +123,10 @@ Push the local commits without rewriting remote history:
 ```sh
 git status --short
 git log --oneline -5
-git push -u origin HEAD
+git branch --show-current
+git remote get-url origin
+# Only when main and the intended remote are verified and push is authorized:
+git push origin main
 ```
 
 CLI alternative from your own authenticated terminal:
@@ -124,29 +141,22 @@ npx vercel env add NEXT_PUBLIC_SITE_URL production
 npx vercel deploy --prod
 ```
 
-No Vercel-specific APIs, Redis, AI APIs, paid services or media storage are required. Ordinary Node hosting and a standalone Dockerfile are also provided. Actual deployment requires your account; it has not been attempted with invented credentials.
+No Vercel-specific APIs, Redis, AI APIs, paid services or media storage are required. Ordinary Node hosting and a standalone Dockerfile are also provided. The connected production deployment has been verified; Vercel status and GitHub CI are separate checks. A passing deployment does not turn a failed CI run green.
 
 ## 5. Bootstrap the first admin
 
-Create and email-verify your account through the app. In Supabase SQL Editor as the project database owner, replace **only** the example email below with your own verified email. This is a trusted one-time console operation; never add it to client code.
+For a **new environment with no admin**, create and email-verify your own account through the app. The canonical procedure is [scripts/production/first-admin.sql](scripts/production/first-admin.sql). Replace only `YOUR_VERIFIED_OWNER_EMAIL` privately and execute it in the intended project's Supabase SQL Editor as the database owner. It locks role assignment, requires a complete verified unsuspended account, refuses when any admin already exists and writes a `bootstrap_admin` audit entry atomically. A successful bootstrap is a one-time operation; repeating it safely rejects. Never put a real email into the committed file, turn it into a migration or use an application/service-role client for it.
+
+Verify the resulting role/audit from the trusted owner console without publishing private email/phone data:
 
 ```sql
-begin;
-lock table public.user_roles in exclusive mode;
-do $$
-declare owner_id uuid;
-begin
-  if exists(select 1 from public.user_roles where role='admin') then
-    raise exception 'An admin already exists; review roles instead of re-bootstrapping';
-  end if;
-  select id into owner_id from auth.users
-  where email='YOUR_VERIFIED_OWNER_EMAIL' and email_confirmed_at is not null;
-  if owner_id is null then raise exception 'Verified owner account not found'; end if;
-  update public.user_roles set role='admin' where user_id=owner_id;
-  insert into public.moderation_actions(actor_id,action,target_type,target_id,note)
-  values(owner_id,'bootstrap_admin','user',owner_id,'Owner console bootstrap');
-end $$;
-commit;
+select p.username, r.role, r.suspended
+from public.profiles p join public.user_roles r on r.user_id=p.id
+where r.role='admin';
+select action, actor_id, target_id, created_at
+from public.moderation_actions
+where action='bootstrap_admin'
+order by created_at desc;
 ```
 
 Sign in again and open `/moderation` and `/admin`. Admins can grant/remove **moderator** roles from `/admin`; normal users and moderators cannot. The app cannot create additional admins or remove the last admin. Further admin assignments require another deliberate owner-console operation with an audit entry.
@@ -168,11 +178,21 @@ Sign in again and open `/moderation` and `/admin`. Admins can grant/remove **mod
 - [ ] Notifications mark one, an aggregate group or all read without marking unrelated groups.
 - [ ] Mobile navigation, Bengali typography, light/dark/system appearance and keyboard focus work on real Android/iOS browsers.
 - [ ] Account deletion requires `DELETE` plus confirmation and removes related private/social rows.
-- [ ] Direct deletion RPC calls with missing, null or incorrect confirmation fail; only exact `DELETE` succeeds. Verify both migrations were applied before enabling public registration.
+- [ ] Direct deletion RPC calls with missing, null or incorrect confirmation fail; only exact `DELETE` succeeds. Verify the entire three-migration chain, including the phone-metadata guard, before enabling public registration.
 - [ ] Owner support/appeals contact is published, moderation coverage exists, Auth abuse limits are configured, and backup/retention procedures are reviewed.
 
 ## Operations and remaining boundaries
 
 Read `SECURITY.md`. Supabase Auth/provider logs can retain operational metadata; the app does not publish IPs or collect GPS. Blocking applies to signed-in users and cannot conceal inherently public posts from someone logged out. Discovery opt-out is not a private-account feature. Free text in retained reports/audits and provider backups needs an explicit owner retention policy.
 
-Pagination is bounded for MVP: feed pages have 20 posts, guest feed 8, discussions and lists 100, tag lookup 200, and following/institution lookups 1,000 people. Plan measured pagination improvements before exceeding those bounds. There is no realtime push, phone OTP, Google OAuth, automated content moderation or email notification service beyond Auth. Optional CAPTCHA, hosted SMTP, custom domain, Docker image packaging and real-device testing still need owner/provider validation.
+Pagination is bounded for MVP: feed pages have 20 posts, guest feed 8, discussions and lists 100, tag lookup 200, and following/institution lookups 1,000 people. Plan measured pagination improvements before exceeding those bounds. There is no realtime push, phone OTP, Google OAuth, automated content moderation or email notification service beyond Auth. SMTP delivery and production hosting have prior evidence; owner configuration/quotas and fresh recovery delivery still need periodic verification. CAPTCHA, an additional custom domain, Docker application packaging, real devices and backup/load recovery are separate acceptance items, not implied by a passing local test suite.
+
+## Safe production QA and maintenance
+
+Use only explicitly designated accounts and uniquely labelled test content. Keep `PRODUCTION_ADMIN_EMAIL/PASSWORD`, `PRODUCTION_TEST_EMAIL/PASSWORD` and any disposable `PRODUCTION_QA_EMAIL/PASSWORD/PHONE` in secure environment settings, never Git/chat/logs. A fresh signup → confirmation → recovery → account-deletion test needs a disposable owned mailbox with secure inbox access or an operator completing the links; existing test/admin accounts must not be deleted to simulate signup. PKCE links and session cookies are secrets: do not attach them to reports or traces.
+
+Persist the affected designated test baseline privately **before the first write**, and verify cleanup independently even when a browser/helper assertion fails. Report any unrecovered test-state change rather than claiming restoration. Snapshot only the affected designated test state privately; restore profile/follow/mute changes and delete only that run's owned posts/comments. Blocking removes bilateral follows/notifications, so avoid repeating it on existing accounts unnecessarily. Reuse prior dedicated moderation evidence and read-only authorization checks unless a regression justifies new destructive tests. Reports/audits and abuse receipts can intentionally remain; do not delete trusted audit history for a clean-looking test run.
+
+Verify `/api/health`, the pushed commit's Vercel Production status and affected live flows after deployment. Check GitHub CI separately; use the failure diagnosis in [VALIDATION.md](VALIDATION.md). Never point `LOCAL_SUPABASE_TESTS=1`, seeds, local reset scripts or owner bypasses at production. Catalog/RLS/history comparisons are read-only. Do not automatically repair the deliberately orphaned historical test account.
+
+For a managed cloud audit, management credentials need the operation's specific scopes. Database read/write access does not imply `auth_config_read`; a 403 means an unverified configuration read, not that Auth is broken. Inspect only setting names/presence and safe public URLs, not SMTP passwords/API secrets. GitHub signed-log downloads use an additional results-storage host; authorize that host through environment settings rather than bypassing network/TLS policy.
