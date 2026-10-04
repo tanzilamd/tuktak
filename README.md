@@ -6,7 +6,7 @@
 
 - [HANDOFF.md](HANDOFF.md): owner checklist, exact Supabase setup and Vercel deployment.
 - [SECURITY.md](SECURITY.md): authorization, privacy, threat boundaries and operations.
-- [supabase/migrations/202610040001_core.sql](supabase/migrations/202610040001_core.sql): complete schema, constraints, RLS and authenticated commands.
+- [supabase/migrations/](supabase/migrations/): ordered schema, RLS and RPC migrations; apply the entire chain, including the pre-production guards.
 - [VALIDATION.md](VALIDATION.md): checks actually executed and deployment checks still required.
 
 ## Requirements
@@ -30,7 +30,7 @@ npm run local:start
 npm run dev
 ```
 
-The startup script creates `.env.local` with a **local-only public anon key**, applies the migration on a fresh database, loads fictional seed accounts, and starts a small route gateway. It refuses to overwrite hosted configuration. Repeating it reuses the database and local configuration. The stack is exclusively for development; never deploy its compose file or local keys.
+The startup script creates `.env.local` with a **local-only public anon key**, applies the full ordered migration chain, loads fictional seed accounts only on a fresh schema, and starts a small route gateway. It refuses to overwrite hosted configuration. Repeating it applies pending migrations while preserving data/configuration. The shared local/test runner records checksums in owner-only `tuktak_local.migrations`, adopts the original untracked schema after baseline checks, and rejects rewritten applied migrations. Hosted projects use Supabase's own migration history. The stack is exclusively for development; never deploy its compose file or local keys.
 
 - Application: port 3000.
 - Mailpit inbox: port 55424. Open locally to read verification/recovery emails.
@@ -46,7 +46,7 @@ docker compose -p tuktak-test -f scripts/local/compose.yml down -v
 npm run local:start
 ```
 
-Reset after changing the initial migration. Never point these commands at a production database. Database containers/volumes may not survive cloud snapshots; startup recreates them if necessary.
+Committed migrations are immutable: add a new forward migration, then run `npm run local:start` to upgrade without resetting. Never point reset commands at a production database. Database containers/volumes may not survive cloud snapshots; startup recreates them if necessary.
 
 ## Standard Supabase CLI alternative
 
@@ -83,8 +83,8 @@ Enable Turnstile in **Supabase Auth CAPTCHA settings**, put its secret there, an
 ```sh
 npm run lint             # React, Hooks and TypeScript lint rules
 npm run typecheck        # Strict TypeScript compilation without emitting code
-npm test                 # Server validation + executable PostgreSQL/RLS tests in PGlite
-npm run db:test          # Database tests only; no Docker needed
+npm test                 # Validation, data contracts, PostgreSQL/RLS and migration tests
+npm run db:test          # Database + fresh-install/upgrade tests; no Docker needed
 npm audit --omit=dev --audit-level=moderate
 npm run build            # Production Next.js build
 npm start                # Run the built application on port 3000
@@ -105,6 +105,8 @@ The packaged Chromium is a dev dependency for environments that cannot download 
 Server-rendered App Router pages and authenticated server actions use the caller's Supabase session. PostgreSQL `command()` is the only app mutation path. Direct table writes are revoked. It derives identity from the signed session, requires verified email, checks suspension/roles, serializes per-user commands, enforces database constraints, applies rate limits and maintains notifications.
 
 Public profiles contain no phone/email or hidden institution. Private accounts and roles have separate tables and own-account RLS. Profile discovery opt-out removes a person from search, while public post/profile URLs remain public. An institution feed appears only after institution publication and matches normalized institution text. All feeds are chronological. Recent topics count at most one author per hashtag over seven days; a post indexes up to five distinct tags. Posts have 240 Unicode codepoints; replies have 180. A Bengali vowel sign and an emoji sequence's component codepoints each count, matching PostgreSQL `char_length`.
+
+Posts use one aggregate view model (`reaction_counts`, `current_reaction`, `comment_count`) from `post_stats()`, also used by fictional previews. Discover ranks the bounded recent feed by total reactions, preserving chronological ties. Displayed users' follow relationships are fetched in one session-scoped query. Returning users visit profile editing instead of the first-time wizard; SQL rejects stale onboarding submissions after completion.
 
 All primary screens, empty/loading/error states, adaptive profiles, in-app notifications, safety tools, moderator/admin dashboards and light/dark/system themes are included. Daily questions rotate using the Dhaka calendar date. Brand, labels, moods, interests and reactions are centralized in `src/lib/config.ts`. Avatars are generated text/CSS; there are no uploads or storage buckets.
 
@@ -136,7 +138,7 @@ Use TLS termination, preserve the canonical host/forwarded host, and do not cach
 - **Expired callback:** request a new email/recovery link; complete PKCE links in the browser used to start the flow. Callback origin uses the configured canonical site URL.
 - **Rate limit:** wait ten minutes. Production Auth has its own independent limits/CAPTCHA settings.
 - **Docker disk/registry failure:** use the small local stack; do not disable TLS/checksums. In this workspace browser downloads were denied, so tests use npm-distributed packaged Chromium.
-- **Local DB changed:** reset only the fictional local stack to apply the updated initial migration.
+- **Local DB changed:** add a forward migration and run `npm run local:start`. If history checks fail, inspect the discrepancy; do not rewrite applied files or reset real data.
 
 ## Non-goals
 

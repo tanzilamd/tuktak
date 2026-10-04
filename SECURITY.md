@@ -32,6 +32,8 @@ The first admin is bootstrapped deliberately by the database owner with guarded 
 
 `profiles` has no email or phone column. Phone, phone verification status and hidden institution values live in `account_private`. Publication copies only explicitly opted-in institution text and its normalized key into the public profile. Public queries use an explicit column list. Private phone is sent to a client component only on the owner's account-settings page; onboarding receives public profile fields only.
 
+Completed accounts are redirected from first-time onboarding to profile editing with saved values. SQL rejects an `onboarding=true` submission after completion under the existing per-user transaction lock, preventing a stale wizard from clearing institution/visibility/education data. The completion query selects only its boolean, never private phone data.
+
 No exact birthday/age, ID documents, family information, address, GPS, private photos, contact list or public IP data is collected. There are no media buckets or metadata-fetching link previews. Server-rendered metadata uses only public profile/post fields. Discovery opt-out removes a profile from the application's search results; it does not make the account or its posts private.
 
 A block is symmetric for authenticated visibility/interactions and removes both follow directions and mutual notifications. It does not reveal who blocked whom through a list API. Muting hides the caller's feed/discussion content without notifying the muted person. Blocking cannot prevent an adversary from reading public content while logged out or using a different account. Users should not publish confidential information in posts.
@@ -56,7 +58,7 @@ Reports contain reason/optional notes and a target ID, not a public reporter ide
 
 ## Deletion and retention
 
-Post deletion cascades through comments, reactions, tags and related notifications. Comment deletion removes its notifications. Account deletion requires the literal `DELETE` plus explicit browser confirmation, deletes the Auth user and cascades private profiles/account data, social content and relationships. Reports set reporter ID to null; audits set actor ID to null so accountability history is retained without a live identity link. Report target IDs and free-text notes may remain; they can contain personal text voluntarily entered by reporters/staff. Provider backups have their own retention.
+Post deletion cascades through comments, reactions, tags and related notifications. Comment deletion removes its notifications. Account deletion requires exactly `DELETE` at the database/RPC boundary plus explicit browser confirmation. The null-safe SQL guard rejects missing, null, incorrect, padded and differently cased values. Successful deletion removes the Auth user and cascades private profiles/account data, social content and relationships. Reports set reporter ID to null; audits set actor ID to null so accountability history is retained without a live identity link. Report target IDs and free-text notes may remain; they can contain personal text voluntarily entered by reporters/staff. Provider backups have their own retention.
 
 The owner must set a retention policy. Review closed reports/audits and remove sensitive free text when no longer needed. A suggested initial policy is 90 days for closed reports, with longer restricted audit retention only when justified; verify legal/operational requirements rather than silently adopting this suggestion. Never implement a public audit/report export.
 

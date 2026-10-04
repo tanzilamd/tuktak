@@ -19,7 +19,7 @@ Do not post any secret in GitHub issues, chat, screenshots, source files or clie
 
 1. Create a new Supabase project. Choose a suitable nearby region and save the generated **database password privately**.
 2. Open **Project Settings → API / API Keys**. Record the project URL and **publishable key** (or legacy **anon** key). These two values are public safe. **Do not use service-role or secret API keys.**
-3. In Supabase **SQL Editor**, open a new query. Paste and run the **entire** contents of `supabase/migrations/202610040001_core.sql`, once, on the new empty project. This creates all 15 tables, constraints, indexes, RLS policies, profile-creation trigger and command/read functions. It creates no media bucket.
+3. In Supabase **SQL Editor**, run the **entire** contents of each migration once, in filename order: first `supabase/migrations/202610040001_core.sql`, then `supabase/migrations/20261004000200_preproduction_guards.sql`. The first creates all 15 tables, constraints, indexes, RLS policies, profile-creation trigger and command/read functions. The second preserves authorization while enforcing null-safe deletion confirmation and rejecting stale onboarding submissions after completion. It creates no media bucket. For an existing project with the initial schema already applied, run only the new pre-production migration; preserve all existing accounts/data.
 4. Do **not** run `supabase/seed.sql` in production. It contains only development users with shared development passwords.
 5. Verify the schema with the SQL below. All 15 rows must have `relrowsecurity = true`.
 
@@ -41,13 +41,14 @@ npx supabase link --project-ref YOUR_PROJECT_REF
 npx supabase db push
 ```
 
-Use **either** SQL Editor for a fresh project **or** CLI-managed migrations. If you initially use SQL Editor and later adopt CLI, mark the migration as applied after verifying it matches:
+Use **either** SQL Editor **or** CLI-managed migrations. `db push` applies the full pending chain. If you initially use SQL Editor and later adopt CLI, mark each migration as applied only after verifying that its complete contents were run:
 
 ```sh
 npx supabase migration repair --status applied 202610040001
+npx supabase migration repair --status applied 20261004000200
 ```
 
-Never use `db reset` against production. After initial deployment, add new migration files; do not edit already-applied migrations or reset real accounts.
+Never use `db reset` against production. After initial deployment, add new migration files; do not edit already-applied migrations or reset real accounts. The fictional local stack's `tuktak_local.migrations` ledger is not the hosted migration workflow; do not create it on production.
 
 ## 2. Configure Supabase Auth
 
@@ -150,6 +151,7 @@ Sign in again and open `/moderation` and `/admin`. Admins can grant/remove **mod
 - [ ] Real email verification, login, password recovery and logout work on the deployed domain.
 - [ ] Registration requires username/private phone/password; invalid/reserved/duplicate usernames fail.
 - [ ] Optional onboarding works for school, university, admission, gap year and not currently studying; no institution is required.
+- [ ] Revisiting `/onboarding` redirects a completed account to profile editing with saved institution, visibility and education values intact. A stale wizard submission cannot overwrite them.
 - [ ] 240-codepoint posts and 180-codepoint comments work; overlength requests fail at the database.
 - [ ] Reaction switching/removal, comment/post deletion and chronological following feed work with two test accounts.
 - [ ] Hidden institutions, phone and email do not appear in public profiles, API queries, search or metadata.
@@ -160,6 +162,7 @@ Sign in again and open `/moderation` and `/admin`. Admins can grant/remove **mod
 - [ ] Notifications mark one, an aggregate group or all read without marking unrelated groups.
 - [ ] Mobile navigation, Bengali typography, light/dark/system appearance and keyboard focus work on real Android/iOS browsers.
 - [ ] Account deletion requires `DELETE` plus confirmation and removes related private/social rows.
+- [ ] Direct deletion RPC calls with missing, null or incorrect confirmation fail; only exact `DELETE` succeeds. Verify both migrations were applied before enabling public registration.
 - [ ] Owner support/appeals contact is published, moderation coverage exists, Auth abuse limits are configured, and backup/retention procedures are reviewed.
 
 ## Operations and remaining boundaries
