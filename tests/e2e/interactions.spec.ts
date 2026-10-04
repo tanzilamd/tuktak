@@ -473,3 +473,22 @@ for (const action of [
     await page.unrouteAll({ behavior: "wait" });
   });
 }
+
+test("browser back to the feed reconciles a confirmed reply without manual reload", async ({
+  page,
+}) => {
+  const card = page
+    .locator(".post-card")
+    .filter({ hasText: `UX other ${foreign}` });
+  await expect(card.locator(".reply-link span")).toHaveText("০");
+  await card.getByLabel("পোস্ট খুলে দেখি").click();
+  await page.getByLabel("কথায় কথা বাড়ুক").fill(`Back navigation ${foreign}`);
+  await page.getByRole("button", { name: "উত্তর দিই", exact: true }).click();
+  await expect(
+    page
+      .locator(".comment")
+      .getByRole("button", { name: "মুছে দিই", exact: true }),
+  ).toBeEnabled();
+  await page.goBack();
+  await expect(card.locator(".reply-link span")).toHaveText("১");
+});
