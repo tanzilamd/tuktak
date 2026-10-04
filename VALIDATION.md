@@ -279,4 +279,19 @@ This focused milestone supersedes the historical PWA deferral above. The checkou
 
 `AGENTS.md`, `README.md`, `HANDOFF.md`, `SECURITY.md`, `VALIDATION.md`; `next.config.ts`, `src/proxy.ts`, `src/app/layout.tsx`, `src/app/globals.css`, `src/components/home-feed.tsx`; new `src/app/manifest.ts`, `src/lib/pwa.ts`, `src/components/pwa-provider.tsx`, `src/components/install-card.tsx`; new `public/sw.js`, `public/icons/{icon-192.png,icon-512.png,icon-maskable-512.png,apple-touch-icon.png}`, `public/offline/{index.html,hind-siliguri-bengali-400.woff2,FONT-LICENSE.txt}`; new `tests/pwa.test.ts`, `tests/e2e/pwa.spec.ts`.
 
-Release-suite and hosted deployment evidence will be recorded after those checks complete. Post-launch PWA candidates are physical-device/assistive-technology testing and platform-specific install wording if real usage warrants it. Push notifications, background social synchronization and offline feeds remain outside Safe PWA V1.
+### Hosted deployment and live verification
+
+Implementation commit `fb39f39bd53e2aed0902b9a23a3804fd8174fa30` was pushed as a fast-forward to `main`. GitHub CI [37233440856](https://github.com/tanzilamd/tuktak/actions/runs/37233440856) passed, including clean install, lint/type/unit/audit, fresh/repeated local-stack startup, production build and full browser suite. Vercel's exact-commit status and GitHub Production deployment `6846510339` both report success. The canonical origin serves the new manifest and all install icons; health returns 200/ok.
+
+TLS-verified live browser checks passed:
+
+- Production manifest identity/start/scope, PNG/Apple assets, worker MIME/no-store headers and native CDP manifest/installability criteria. This packaged headless browser observed **zero native install opportunities**, so the Chromium card correctly stayed hidden; no native prompt/OS install is claimed. User-triggered prompting, successful completion and standalone hiding remain covered by the explicitly simulated local regressions.
+- Fresh login with the designated existing test actor; logged-in login/signup redirects; recovery/reset/settings/inbox/callback/API reads. The actual worker cache remained exactly the two generic resources throughout. No profile, private-account, role or social-content mutation was performed; normal login establishes an Auth session.
+- Actual worker-controlled offline public navigation, cached Bengali font, retry/reconnect and unchanged cache contents. Offline login/callback/API navigations fail through normal browser handling rather than receiving the public fallback.
+- Offline fallback at 320/360/768/1280px, light/dark, with axe and overflow checks; live iPhone/iPad Safari **platform simulation in Chromium**, with readable instruction cards, no fake install button, axe/overflow in both themes and dismissal preserved after reload. Actual WebKit/physical-device Add to Home Screen and installed-app launch remain unverified.
+
+The verification-only documentation follow-up changes no application/dependency/migration bytes; final commit/push/deployment status is provided in the task report. Current-instance cloud setup works using the existing saved install/start instructions; no draft change was needed, and publication/fresh-task restoration is not claimed.
+
+Post-launch PWA candidates are physical-device/assistive-technology testing and platform-specific install wording if real usage warrants it. Browser uninstall detection remains limited: clearing site preferences may be needed to reshow the card after uninstall. Push notifications, background social synchronization and offline feeds remain outside Safe PWA V1.
+
+**Verdict: A — Safe PWA V1 complete on the scoped automated and hosted evidence, with physical OS installation/standalone launch explicitly unverified.**
