@@ -22,7 +22,7 @@ export default async function Home({
     <>
       <div className="page-top">
         <div>
-          <span className="eyebrow">একটু কথায়, একটু কাছাকাছি</span>
+          <span className="eyebrow">যা বলছেন, ঠিকই বলছেন।</span>
           <h1>
             আড্ডা{" "}
             <span className="heading-spark" aria-hidden="true">
