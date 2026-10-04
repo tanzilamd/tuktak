@@ -1923,3 +1923,35 @@ select {
   top: 50%;
   transform: translateY(-50%);
 }
+
+.install-card {
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.install-copy {
+  flex: 1 1 180px;
+  min-width: 0;
+}
+.install-copy h2 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.5;
+}
+.install-copy p {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+.install-copy .install-instructions {
+  font-size: 13px;
+}
+.install-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.install-actions .button {
+  min-height: 44px;
+}

@@ -6,6 +6,7 @@ import { Sparkles } from "lucide-react";
 import { Composer, Result } from "./forms";
 import { PostCard } from "./post-card";
 import { Empty } from "./empty";
+import { InstallCard } from "./install-card";
 import Loading from "@/app/loading";
 import { FeedCache } from "@/lib/feed-cache";
 import { SOCIAL_ERROR } from "@/lib/social";
@@ -194,6 +195,7 @@ export function HomeFeed({
           }}
         />
       )}
+      <InstallCard />
       <nav className="feed-tabs" aria-label="আড্ডার ধরন">
         <Link
           href="/"

@@ -162,6 +162,14 @@ Notifications stay unread when the inbox opens. Opening a notification or using 
 
 SSC/HSC batches accept Bengali and ASCII digits and store ASCII years under the existing 1000–2999 rule. Optional status allows 40 Unicode codepoints, trimmed on save. Accent IDs remain unchanged; only their display names are simplified. Posts, replies and notifications share Dhaka relative timestamps and exact-time titles. Daily questions rotate through 31 curated questions once per Dhaka calendar day.
 
-Public launch pages: `/privacy`, `/terms`, `/community`, with the configured support/appeals mailbox. Canonicals and social sharing default to the production origin; a custom canonical origin still comes from `NEXT_PUBLIC_SITE_URL`. The existing app icon is retained and the sharing image reuses it. Theme-color metadata is present; there is no manifest/service worker/offline install workflow. PWA support is deliberately deferred.
+Public launch pages: `/privacy`, `/terms`, `/community`, with the configured support/appeals mailbox. Canonicals and social sharing default to the production origin; a custom canonical origin still comes from `NEXT_PUBLIC_SITE_URL`. The existing app icon is retained and the sharing image reuses it.
 
 Apply every ordered migration, including the two launch refinements, before deploying this version. See HANDOFF and VALIDATION for the deployment evidence and limits.
+
+## Safe PWA V1
+
+The standalone manifest and 192/512px standard, maskable and Apple icons reuse the existing SVG. The compact Home card sits between the composer and feed tabs. Chromium's real install event enables a user-triggered native prompt; iPhone/iPad Safari gets Share → Add to Home Screen instructions. Standalone/installed state hides it; dismissal or a declined/accepted prompt suppresses reminders for 30 days. Only a completed install/standalone launch records installed state. Browsers cannot reliably report uninstalling, so clearing site preferences may be needed to show the card again after uninstall. Blocked storage falls back to session-local suppression.
+
+`public/sw.js` caches only generic offline HTML and its licensed self-hosted Bengali font, fetched without credentials. Public document navigations use the network and get that fallback only on connection failure. API, mutation, RSC, Auth utility and private-page requests bypass it; HTTP authorization/errors are preserved. No app JavaScript, feed/profile/notification/private data is stored by the worker. Client navigation still uses the existing app error handling; PWA V1 is not an offline social app or push service.
+
+The worker checks for updates on registration and at most once an hour on foreground return, with HTTP cache bypass. It precaches before immediate activation, removes only older owned offline caches, and never reloads tabs or retries writes. Bump its cache version when the offline bundle changes. Keep this policy conservative; see HANDOFF and SECURITY for deployment/authorization boundaries and VALIDATION for actual installability/device evidence.

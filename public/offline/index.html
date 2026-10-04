@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="bn">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#f8f6f1" />
+    <title>ইন্টারনেট সংযোগ নেই · টুকটাক</title>
+    <style>
+      @font-face {
+        font-family: "Hind Siliguri";
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("/offline/hind-siliguri-bengali-400.woff2") format("woff2");
+      }
+      :root {
+        color-scheme: light;
+        --bg: #f8f6f1;
+        --surface: #fffefa;
+        --text: #302e29;
+        --muted: #625e54;
+        --border: #e9e5db;
+        --primary: #b84430;
+        --button-text: #fffefa;
+        --focus: #7050b4;
+      }
+      :root[data-theme="dark"] {
+        color-scheme: dark;
+        --bg: #191d1c;
+        --surface: #242a27;
+        --text: #f2efe4;
+        --muted: #b5b5a8;
+        --border: #38413a;
+        --primary: #f38a6f;
+        --button-text: #302e29;
+        --focus: #bc9eef;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 24px 16px;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Hind Siliguri", system-ui, sans-serif;
+        line-height: 1.7;
+      }
+      main {
+        width: 100%;
+        max-width: 420px;
+        padding: 28px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        background: var(--surface);
+      }
+      h1 {
+        font-size: 24px;
+        margin: 16px 0 8px;
+      }
+      p {
+        color: var(--muted);
+        margin: 0 0 20px;
+      }
+      button {
+        font: inherit;
+        min-height: 44px;
+        padding: 10px 19px;
+        border: 0;
+        border-radius: 12px;
+        background: var(--primary);
+        color: var(--button-text);
+        cursor: pointer;
+      }
+      button:focus-visible {
+        outline: 3px solid var(--focus);
+        outline-offset: 3px;
+      }
+    </style>
+    <script>
+      try {
+        const theme = localStorage.getItem("tuktak-theme");
+        document.documentElement.dataset.theme =
+          theme === "dark" ||
+          (theme !== "light" &&
+            matchMedia("(prefers-color-scheme: dark)").matches)
+            ? "dark"
+            : "light";
+      } catch {
+        document.documentElement.dataset.theme = matchMedia(
+          "(prefers-color-scheme: dark)",
+        ).matches
+          ? "dark"
+          : "light";
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <svg
+        aria-hidden="true"
+        width="48"
+        height="48"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 64 64"
+      >
+        <rect width="64" height="64" rx="20" fill="#ec694f" />
+        <path d="M16 22h32v7H36v15h9v7H25V29h-9z" fill="#fff8ef" />
+      </svg>
+      <h1>ইন্টারনেট সংযোগ নেই</h1>
+      <p>
+        সংযোগ ফিরে এলে আবার টুকটাক খুলুন। এখানে কোনো পুরোনো পোস্ট দেখানো হচ্ছে
+        না।
+      </p>
+      <button type="button" onclick="location.reload()">
+        আবার চেষ্টা করুন
+      </button>
+    </main>
+  </body>
+</html>

@@ -8,6 +8,7 @@ import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { RightRail } from "@/components/right-rail";
 import { NotificationCount } from "@/components/notification-count";
+import { PwaProvider } from "@/components/pwa-provider";
 import { viewer, unreadNotificationCount } from "@/lib/data";
 import { BRAND, SITE_URL } from "@/lib/config";
 export const dynamic = "force-dynamic";
@@ -18,6 +19,16 @@ export const metadata: Metadata = {
     template: `%s · ${BRAND.name}`,
   },
   description: BRAND.description,
+  appleWebApp: { capable: true, title: BRAND.name, statusBarStyle: "default" },
+  icons: {
+    apple: [
+      {
+        url: "/icons/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
   openGraph: {
     title: BRAND.name,
     description: BRAND.description,
@@ -63,16 +74,18 @@ export default async function RootLayout({
         <a href="#main" className="skip-link">
           মূল পাতায় যাই
         </a>
-        <NotificationCount key={v?.id ?? "guest"} initialCount={count}>
-          <div className="app-shell">
-            <Navigation viewer={v} />
-            <main id="main" className="main-column">
-              <InteractionSync key={v?.id ?? "guest"} />
-              {children}
-            </main>
-            <RightRail />
-          </div>
-        </NotificationCount>
+        <PwaProvider>
+          <NotificationCount key={v?.id ?? "guest"} initialCount={count}>
+            <div className="app-shell">
+              <Navigation viewer={v} />
+              <main id="main" className="main-column">
+                <InteractionSync key={v?.id ?? "guest"} />
+                {children}
+              </main>
+              <RightRail />
+            </div>
+          </NotificationCount>
+        </PwaProvider>
       </body>
     </html>
   );
