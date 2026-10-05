@@ -13,7 +13,7 @@ import { Avatar } from "./avatar";
 import { RichText } from "./rich-text";
 import { Mutation, Result } from "./forms";
 import { toggleReaction, readSocial } from "@/lib/social";
-import { REACTIONS, bn, loginHref } from "@/lib/config";
+import { REACTIONS, bn } from "@/lib/config";
 import { EDIT_WINDOW } from "@/lib/engagement";
 import { exactTime } from "@/lib/time";
 import { QuoteCard } from "./quote-preview";
@@ -89,106 +89,96 @@ export function PostCard({
               </small>
             </span>
           </Link>
-          <details className="post-menu" name="post-actions">
-            <summary aria-label="পোস্টের আরও অপশন">
-              <MoreHorizontal size={20} />
-            </summary>
-            <div className="menu-panel">
-              {!optimistic && (!post.is_quote || stats.quote) && (
-                <Link
-                  className="quote-menu"
-                  href={
-                    viewer
-                      ? `/compose?quote=${post.quoted_post_id ?? post.id}`
-                      : loginHref(
-                          `/compose?quote=${post.quoted_post_id ?? post.id}`,
-                        )
-                  }
-                  aria-label="আবার শেয়ার করি"
-                  prefetch={false}
-                >
-                  <Repeat2 size={16} aria-hidden="true" /> আবার শেয়ার করি
-                </Link>
-              )}
-              {mine ? (
-                <>
-                  {editable && (
-                    <button
-                      type="button"
-                      className="button button-small button-quiet"
-                      disabled={optimistic || reactionPending || deletePending}
-                      onClick={(event) => {
-                        setEditing(true);
-                        event.currentTarget
-                          .closest("details")
-                          ?.removeAttribute("open");
-                      }}
-                    >
-                      সম্পাদনা করি
-                    </button>
-                  )}
-                  <Mutation
-                    action="delete_post"
-                    values={{ id: post.id }}
-                    label="পোস্ট মুছে দিই"
-                    confirm="এই পোস্ট আর তার সব উত্তর মুছে যাবে। নিশ্চিত?"
-                    disabled={optimistic || reactionPending || deletePending}
-                    interaction={{
-                      start() {
-                        setDeleteError({ ok: false, message: "" });
-                        setDeleted(true);
-                        setDeletePending(true);
-                        onDeleteState?.(true);
-                      },
-                      async settle(result) {
-                        if (!result.ok) {
-                          setDeleted(false);
-                          onDeleteState?.(false);
-                          setDeleteError(result);
-                        }
-                        if (result.uncertain) {
-                          const fresh = await readSocial({ id: post.id });
-                          if (fresh.ok && !fresh.post) {
-                            setDeleted(true);
-                            onDeleteState?.(true);
-                          }
-                        }
-                        setDeletePending(false);
-                      },
-                    }}
-                  />
-                </>
-              ) : (
-                <>
+          {viewer && (
+            <details className="post-menu">
+              <summary aria-label="পোস্টের আরও অপশন">
+                <MoreHorizontal size={20} />
+              </summary>
+              <div className="menu-panel">
+                {!optimistic && (!post.is_quote || stats.quote) && (
                   <Link
-                    href={
-                      viewer
-                        ? `/report?type=post&id=${post.id}`
-                        : loginHref(`/report?type=post&id=${post.id}`)
-                    }
+                    className="quote-menu"
+                    href={`/compose?quote=${post.quoted_post_id ?? post.id}`}
+                    aria-label="আবার শেয়ার করি"
                     prefetch={false}
                   >
-                    রিপোর্ট করি
+                    <Repeat2 size={16} aria-hidden="true" /> আবার শেয়ার করি
                   </Link>
-                  {viewer && (
+                )}
+                {mine ? (
+                  <>
+                    {editable && (
+                      <button
+                        type="button"
+                        className="button button-small button-quiet"
+                        disabled={
+                          optimistic || reactionPending || deletePending
+                        }
+                        onClick={(event) => {
+                          setEditing(true);
+                          event.currentTarget
+                            .closest("details")
+                            ?.removeAttribute("open");
+                        }}
+                      >
+                        সম্পাদনা করি
+                      </button>
+                    )}
+                    <Mutation
+                      action="delete_post"
+                      values={{ id: post.id }}
+                      label="পোস্ট মুছে দিই"
+                      confirm="এই পোস্ট আর তার সব উত্তর মুছে যাবে। নিশ্চিত?"
+                      disabled={optimistic || reactionPending || deletePending}
+                      interaction={{
+                        start() {
+                          setDeleteError({ ok: false, message: "" });
+                          setDeleted(true);
+                          setDeletePending(true);
+                          onDeleteState?.(true);
+                        },
+                        async settle(result) {
+                          if (!result.ok) {
+                            setDeleted(false);
+                            onDeleteState?.(false);
+                            setDeleteError(result);
+                          }
+                          if (result.uncertain) {
+                            const fresh = await readSocial({ id: post.id });
+                            if (fresh.ok && !fresh.post) {
+                              setDeleted(true);
+                              onDeleteState?.(true);
+                            }
+                          }
+                          setDeletePending(false);
+                        },
+                      }}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href={`/report?type=post&id=${post.id}`}
+                      prefetch={false}
+                    >
+                      রিপোর্ট করি
+                    </Link>
                     <Mutation
                       action="mute"
                       values={{ id: post.author_id, enabled: true }}
                       label="চুপ রাখি (mute)"
                     />
-                  )}
-                  {viewer && (
                     <Mutation
                       action="block"
                       values={{ id: post.author_id, enabled: true }}
                       label="ব্লক করি"
                       confirm="একে অন্যের পোস্ট আর দেখতে পাবে না। ব্লক করবে?"
                     />
-                  )}
-                </>
-              )}
-            </div>
-          </details>
+                  </>
+                )}
+              </div>
+            </details>
+          )}
         </div>
         {post.mood && <p className="post-mood">{post.mood}</p>}
         {editing ? (
@@ -290,7 +280,7 @@ export function PostCard({
               ) : (
                 <Link
                   key={r.key}
-                  href={loginHref(`/post/${post.id}`)}
+                  href="/login"
                   className="reaction-button"
                   aria-label={`${r.label}, ${bn(count)}টি`}
                 >
@@ -363,13 +353,6 @@ export function PersonCard({
             label={following ? "সাথে আছি ✓" : "সাথে থাকি +"}
             pressed={following}
           />
-        ) : !viewer ? (
-          <Link
-            className="button button-small"
-            href={loginHref(`/u/${profile.username}`)}
-          >
-            সাথে থাকি +
-          </Link>
         ) : (
           <Link className="small" href={`/u/${profile.username}`}>
             দেখি ↗

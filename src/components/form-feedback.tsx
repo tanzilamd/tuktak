@@ -63,34 +63,6 @@ export function FeedbackForm({
         {...props}
         ref={ref}
         noValidate
-        onChange={(event) => {
-          const target = event.target;
-          if (!(
-            target instanceof HTMLInputElement ||
-            target instanceof HTMLTextAreaElement ||
-            target instanceof HTMLSelectElement
-          ))
-            return;
-          const name = target.name;
-          if (!state.fieldErrors?.[name]) return;
-          const parsed = schema.safeParse(
-            input(new FormData(event.currentTarget)),
-          );
-          const errors = parsed.success
-            ? {}
-            : (validationFailure(parsed.error).fieldErrors ?? {});
-          // Only update already displayed errors; typing must not reveal untouched fields.
-          const fieldErrors = Object.fromEntries(
-            Object.keys(state.fieldErrors)
-              .filter((key) => errors[key])
-              .map((key) => [key, errors[key]]),
-          );
-          setLocal({
-            ...state,
-            fieldErrors,
-            message: Object.keys(fieldErrors).length ? state.message : "",
-          });
-        }}
         onSubmit={(event) => {
           const parsed = schema.safeParse(
             input(new FormData(event.currentTarget)),

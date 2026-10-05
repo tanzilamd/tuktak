@@ -14,7 +14,6 @@ import { PostCard } from "./post-card";
 import { Empty } from "./empty";
 import { InstallCard } from "./install-card";
 import Loading from "@/app/loading";
-import { loginHref } from "@/lib/config";
 import { FeedCache } from "@/lib/feed-cache";
 import { SOCIAL_ERROR } from "@/lib/social";
 import type { FeedMode, Post, SocialResult, Viewer } from "@/lib/types";
@@ -219,7 +218,7 @@ export function HomeFeed({
           সবার <Sparkles size={14} />
         </Link>
         <Link
-          href={viewer ? "/?feed=following" : loginHref("/?feed=following")}
+          href={viewer ? "/?feed=following" : "/login"}
           prefetch={false}
           className={mode === "following" ? "active" : ""}
           aria-current={mode === "following" ? "page" : undefined}

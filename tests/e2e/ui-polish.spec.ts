@@ -124,27 +124,8 @@ test("stable sidebar footer at laptop heights, keyboard reachability and effecti
             return r.top >= p.top && r.bottom <= p.bottom;
           }),
         ).toBe(true);
-        await page.locator(".sidebar-bottom a").last().focus();
-        await expect(page.locator(".sidebar-bottom a").last()).toBeFocused();
-        await expect(page.locator(".sidebar .mini-profile")).toHaveCount(0);
-        await expect(
-          page
-            .locator(".desktop-nav")
-            .getByRole("link", { name: "আমি", exact: true }),
-        ).toHaveCount(0);
-        await expect(
-          page
-            .locator(".desktop-nav")
-            .getByRole("link", { name: "বলি", exact: true }),
-        ).toHaveCount(0);
-        await expect(
-          page
-            .locator(".desktop-nav")
-            .getByRole("link", { name: "সেটিংস", exact: true }),
-        ).toBeVisible();
-        expect(
-          await middle.evaluate((e) => e.scrollHeight - e.clientHeight),
-        ).toBeLessThanOrEqual(1);
+        await page.locator(".mini-profile").focus();
+        await expect(page.locator(".mini-profile")).toBeFocused();
         await noOverflow(page);
         await page.screenshot({
           path: info.outputPath(`sidebar-${w}-${zoom}-${mode}.png`),

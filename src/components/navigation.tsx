@@ -9,10 +9,11 @@ import {
   UserRound,
   Settings,
   Shield,
+  ArrowUpRight,
 } from "lucide-react";
 import { useNotificationCount } from "./notification-count";
 import { notificationLabel, unreadLabel } from "@/lib/notifications";
-import { BRAND, loginHref } from "@/lib/config";
+import { BRAND } from "@/lib/config";
 import { Avatar } from "./avatar";
 import type { Viewer } from "@/lib/types";
 const nav = [
@@ -34,7 +35,7 @@ export function Navigation({ viewer }: { viewer: Viewer | null }) {
   ];
   return (
     <>
-      <aside className="sidebar" aria-label="আড্ডার নেভিগেশন">
+      <aside className="sidebar">
         <Link className="brand" href="/" aria-label={`${BRAND.name} — আড্ডা`}>
           <span className="brand-mark">{Array.from(BRAND.name)[0]}</span>
           {BRAND.name}
@@ -43,39 +44,39 @@ export function Navigation({ viewer }: { viewer: Viewer | null }) {
         <p className="brand-tagline">কথা জমাইও না।</p>
         <div className="sidebar-middle">
           <nav aria-label="প্রধান নেভিগেশন" className="desktop-nav">
-            {nav
-              .filter((item) => item.href !== "/compose")
-              .map(({ href, label, Icon }) => (
-                <Link
-                  key={label}
-                  className={`nav-item ${path === href ? "active" : ""}`}
-                  href={href}
-                  aria-label={
-                    href === "/notifications"
-                      ? notificationLabel(count)
-                      : undefined
-                  }
-                  aria-current={path === href ? "page" : undefined}
-                >
-                  <span className="nav-icon">
-                    <Icon size={21} />
-                    {href === "/notifications" && count > 0 && (
-                      <span className="notification-badge" aria-hidden="true">
-                        {unreadLabel(count)}
-                      </span>
-                    )}
-                  </span>
-                  {label}
-                  {path === href && <span className="nav-dot" />}
-                </Link>
-              ))}
-            <Link
-              className={`nav-item ${path.startsWith("/settings") ? "active" : ""}`}
-              href={viewer ? "/settings" : loginHref("/settings")}
-            >
-              <Settings size={21} />
-              সেটিংস
-            </Link>
+            {items.map(({ href, label, Icon }) => (
+              <Link
+                key={label}
+                className={`nav-item ${path === href ? "active" : ""}`}
+                href={href}
+                aria-label={
+                  href === "/notifications"
+                    ? notificationLabel(count)
+                    : undefined
+                }
+                aria-current={path === href ? "page" : undefined}
+              >
+                <span className="nav-icon">
+                  <Icon size={21} />
+                  {href === "/notifications" && count > 0 && (
+                    <span className="notification-badge" aria-hidden="true">
+                      {unreadLabel(count)}
+                    </span>
+                  )}
+                </span>
+                {label}
+                {path === href && <span className="nav-dot" />}
+              </Link>
+            ))}
+            {viewer && (
+              <Link
+                className={`nav-item ${path.startsWith("/settings") ? "active" : ""}`}
+                href="/settings"
+              >
+                <Settings size={21} />
+                সেটিংস
+              </Link>
+            )}
             {viewer && viewer.role !== "user" && (
               <Link className="nav-item" href="/moderation">
                 <Shield size={21} />
@@ -86,12 +87,31 @@ export function Navigation({ viewer }: { viewer: Viewer | null }) {
         </div>
         <Link
           className="button button-primary sidebar-compose"
-          href={viewer ? "/compose" : loginHref("/compose")}
+          href={viewer ? "/compose" : "/signup"}
         >
           <PenLine size={18} />
-          কিছু একটা বলি
+          {viewer ? "কিছু একটা বলি" : "আড্ডায় যোগ দিই"}
         </Link>
         <div className="sidebar-bottom">
+          {viewer ? (
+            <Link
+              className="mini-profile"
+              href={`/u/${viewer.profile.username}`}
+            >
+              <Avatar profile={viewer.profile} />
+              <span>
+                <b>{viewer.profile.display_name}</b>
+                <small>@{viewer.profile.username}</small>
+              </span>
+              <ArrowUpRight size={17} />
+            </Link>
+          ) : (
+            <p>
+              তোমার কথারও জায়গা আছে।
+              <br />
+              <Link href="/login">আগেই আছ? ঢুকে পড়ো ↗</Link>
+            </p>
+          )}
           <div className="footer-links">
             <Link href="/community">আড্ডার নিয়ম</Link>
             <Link href="/privacy">গোপনীয়তা</Link>

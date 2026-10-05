@@ -1,7 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { loginHref } from "@/lib/config";
 import { AdminBadge } from "./admin-badge";
 import { PostCard } from "./post-card";
 import { Composer, Mutation, Result } from "./forms";
@@ -99,8 +98,7 @@ export function Discussion({
             />
           ) : (
             <p className="muted">
-              <Link href={loginHref(`/post/${post.id}`)}>লগইন করো</Link>, তারপর
-              কথা হবে।
+              <Link href="/login">লগইন করো</Link>, তারপর কথা হবে।
             </p>
           )}
           {!replies.length && (
@@ -145,25 +143,6 @@ export function Discussion({
                     <p className="post-body">
                       <RichText text={c.body} mentions={c.mentions} />
                     </p>
-                    {!viewer && (
-                      <div className="comment-actions">
-                        <Link
-                          className="button button-small button-quiet"
-                          href={loginHref(
-                            `/post/${post.id}?comment=${c.id}#comment-${c.id}`,
-                          )}
-                        >
-                          জবাব দিই
-                        </Link>
-                        <Link
-                          className="small muted"
-                          href={loginHref(`/report?type=comment&id=${c.id}`)}
-                          prefetch={false}
-                        >
-                          রিপোর্ট করি
-                        </Link>
-                      </div>
-                    )}
                     {viewer && (
                       <div className="comment-actions">
                         <button

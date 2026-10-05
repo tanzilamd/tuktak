@@ -32,30 +32,3 @@ it("links Bengali and Latin topic chips to existing encoded tag routes without e
   expect(html).toContain("#আড্ডা");
   expect(html).not.toContain("count");
 });
-it("right rail uses the supplied current viewer and omits profile/signup panels for guests", async () => {
-  const { RightRail } = await import("../src/components/right-rail");
-  const { demoProfiles } = await import("../src/lib/demo");
-  topicRead.mockResolvedValue([]);
-  const guest = renderToStaticMarkup(await RightRail({ viewer: null }));
-  expect(guest).not.toContain("rail-profile");
-  expect(guest).not.toContain("/signup");
-  expect(guest).not.toContain("/login");
-  expect(topicRead).toHaveBeenCalledTimes(1);
-  const profile = {
-    ...demoProfiles[0],
-    display_name: "বর্তমান নাম",
-    is_admin: true,
-  };
-  const signed = renderToStaticMarkup(
-    await RightRail({
-      viewer: { id: profile.id, profile, role: "admin", suspended: false },
-    }),
-  );
-  expect(signed).toContain('class="mini-profile rail-profile"');
-  expect(signed).toContain("বর্তমান নাম");
-  expect(signed).toContain("অ্যাডমিন");
-  expect(signed.indexOf("rail-profile")).toBeLessThan(
-    signed.indexOf("rail-card"),
-  );
-  expect(topicRead).toHaveBeenCalledTimes(2);
-});

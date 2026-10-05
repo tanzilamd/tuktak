@@ -1,4 +1,3 @@
-import { ActionMenus } from "@/components/action-menus";
 import { PollRefresh } from "@/components/poll-refresh";
 import { InteractionSync } from "@/components/interaction-sync";
 import type { Metadata, Viewport } from "next";
@@ -81,12 +80,11 @@ export default async function RootLayout({
             <div className="app-shell">
               <Navigation viewer={v} />
               <main id="main" className="main-column">
-                <ActionMenus />
                 <InteractionSync key={v?.id ?? "guest"} />
                 <PollRefresh key={`poll:${v?.id ?? "guest"}`} />
                 {children}
               </main>
-              <RightRail viewer={v} />
+              <RightRail />
             </div>
           </NotificationCount>
         </PwaProvider>

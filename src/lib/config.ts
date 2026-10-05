@@ -164,8 +164,3 @@ export function safeNext(value: unknown) {
     return "/";
   }
 }
-
-// Destination only: login never replays the attempted social action.
-export function loginHref(destination = "/") {
-  return `/login?next=${encodeURIComponent(safeNext(destination))}`;
-}

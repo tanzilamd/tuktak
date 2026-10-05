@@ -3,7 +3,6 @@ import { cache } from "react";
 import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
 import { db } from "./supabase";
-import { loginHref } from "./config";
 import { demoPosts, demoProfiles } from "./demo";
 import type { Profile, Post, PostStats, Comment, Viewer } from "./types";
 import type { Notification } from "./notifications";
@@ -42,12 +41,9 @@ export const viewer = cache(async (): Promise<Viewer | null> => {
     suspended: role.suspended,
   };
 });
-export async function requireViewer(
-  allowSuspended = false,
-  destination?: string,
-) {
+export async function requireViewer(allowSuspended = false) {
   const v = await viewer();
-  if (!v) redirect(destination ? loginHref(destination) : "/login");
+  if (!v) redirect("/login");
   if (v.suspended && !allowSuspended) redirect("/suspended");
   return v;
 }

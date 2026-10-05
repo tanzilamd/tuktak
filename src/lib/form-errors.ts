@@ -21,8 +21,8 @@ export function validationFailure(error: ZodError): ActionState {
     const field = String(issue.path[0] ?? "");
     if (field in messages && !fieldErrors[field])
       fieldErrors[field] =
-        field === "username" && issue.code !== "invalid_type"
-          ? issue.message
+        field === "username" && issue.code === "custom"
+          ? "এই Username-টা সংরক্ষিত। অন্য একটা দাও।"
           : messages[field];
   }
   return {

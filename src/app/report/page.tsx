@@ -8,11 +8,8 @@ export default async function Page({
 }: {
   searchParams: Promise<{ id?: string; type?: string }>;
 }) {
+  await requireViewer();
   const p = await searchParams;
-  await requireViewer(
-    false,
-    `/report?type=${encodeURIComponent(p.type ?? "")}&id=${encodeURIComponent(p.id ?? "")}`,
-  );
   if (
     !z.string().uuid().safeParse(p.id).success ||
     !["post", "comment", "user"].includes(p.type ?? "")

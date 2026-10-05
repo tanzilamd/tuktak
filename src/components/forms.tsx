@@ -475,7 +475,7 @@ export function AuthForm({
           <Field
             label="Username"
             name="username"
-            placeholder="student_01"
+            hint="৩–২০টি ইংরেজি অক্ষর, সংখ্যা বা _"
             autoComplete="username"
             minLength={3}
             maxLength={20}
@@ -513,7 +513,7 @@ export function AuthForm({
           autoComplete={kind === "login" ? "current-password" : "new-password"}
           minLength={10}
           maxLength={128}
-          placeholder={kind === "login" ? undefined : "অন্তত ১০ অক্ষর"}
+          hint="অন্তত ১০ অক্ষর; দীর্ঘ ও আলাদা password বেছে নাও।"
           required
         />
       )}

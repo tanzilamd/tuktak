@@ -5,12 +5,7 @@ import {
   usernameSchema,
   registrationSchema,
 } from "../src/lib/validation";
-import {
-  charCount,
-  questionOfDay,
-  safeNext,
-  loginHref,
-} from "../src/lib/config";
+import { charCount, questionOfDay, safeNext } from "../src/lib/config";
 describe("server boundary validation", () => {
   it("counts Unicode codepoints like PostgreSQL, including Bengali and emoji", () => {
     expect(charCount("কি🙂")).toBe(3);
@@ -67,33 +62,4 @@ describe("server boundary validation", () => {
       expect(safeNext(v)).toBe("/");
     expect(safeNext("/onboarding")).toBe("/onboarding");
   });
-});
-
-it("preserves only safe login destinations, without action replay", () => {
-  expect(loginHref("/post/example?comment=one#comment-one")).toBe(
-    "/login?next=%2Fpost%2Fexample%3Fcomment%3Done%23comment-one",
-  );
-  expect(loginHref("https://evil.test")).toBe("/login?next=%2F");
-});
-it("gives safe specific Bengali username guidance", async () => {
-  const { validationFailure } = await import("../src/lib/form-errors");
-  for (const [value, expected] of [
-    ["student friend", "স্পেস"],
-    ["student-friend", "ইংরেজি"],
-    ["ab", "অন্তত ৩"],
-    ["admin", "সংরক্ষিত"],
-  ]) {
-    const result = registrationSchema.safeParse({
-      email: "student@example.invalid",
-      password: "LongNeutralPassword!",
-      username: value,
-      display_name: "বন্ধু",
-      phone: "01700000000",
-    });
-    expect(result.success).toBe(false);
-    if (!result.success)
-      expect(validationFailure(result.error).fieldErrors?.username).toContain(
-        expected,
-      );
-  }
 });
