@@ -9,6 +9,7 @@ import { validationFailure } from "@/lib/form-errors";
 import { unreadNotificationCount } from "@/lib/data";
 import { safeNext } from "@/lib/config";
 import type { ActionState } from "@/lib/types";
+import type { Notification } from "@/lib/notifications";
 const fail = (message: string): ActionState => ({ ok: false, message });
 const unavailable = () =>
   fail("এই মুহূর্তে আড্ডায় যোগ দেওয়া যাচ্ছে না। একটু পরে চেষ্টা করো।");
@@ -146,4 +147,12 @@ export async function markNotificationsRead(
   const unreadCount = await unreadNotificationCount();
   revalidatePath("/", "layout");
   return { ...result, unreadCount };
+}
+export async function openInbox(): Promise<
+  ActionState & { entries?: Notification[]; entryUnreadIds?: string[] }
+> {
+  const form = new FormData();
+  form.set("action", "inbox_open");
+  // No revalidatePath: entry highlighting lives for the visit, not the DB read state.
+  return executeCommand(form);
 }

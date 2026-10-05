@@ -191,6 +191,64 @@ describe("ordered migration chain", () => {
     await db.exec(migrationSQL(migrations));
     expect(await versions()).toEqual(migrations.map((m) => m.version));
   });
+  it("upgrades existing social data and retains legacy client command payloads", async () => {
+    const index = migrations.findIndex(
+      (m) => m.name === "20261005000300_engagement.sql",
+    );
+    await db.exec(migrationSQL(migrations.slice(0, index)));
+    await seedAccount();
+    const postId = (
+      await db.query<{ id: string }>(
+        "insert into posts(author_id,body) values($1,'আগের পোস্ট') returning id",
+        [actor],
+      )
+    ).rows[0].id;
+    const commentId = (
+      await db.query<{ id: string }>(
+        "insert into comments(author_id,post_id,body) values($1,$2,'আগের উত্তর') returning id",
+        [actor, postId],
+      )
+    ).rows[0].id;
+    await db.query(
+      "insert into reactions(post_id,user_id,kind) values($1,$2,'love')",
+      [postId, actor],
+    );
+    const before = (await db.query("select created_at,body from posts")).rows;
+    await db.exec(migrationSQL(migrations));
+    expect((await db.query("select created_at,body from posts")).rows).toEqual(
+      before,
+    );
+    expect(
+      (await db.query("select updated_at,is_quote,quoted_post_id from posts"))
+        .rows,
+    ).toEqual([{ updated_at: null, is_quote: false, quoted_post_id: null }]);
+    expect((await db.query("select id,parent_id from comments")).rows).toEqual([
+      { id: commentId, parent_id: null },
+    ]);
+    await db.exec("begin; set local role authenticated");
+    await db.query("select set_config('request.jwt.claim.sub',$1,true)", [
+      actor,
+    ]);
+    await db.query(
+      "select command('comment',jsonb_build_object('id',$1::text,'body','পুরোনো ক্লায়েন্টের উত্তর'))",
+      [postId],
+    );
+    await db.query(
+      'select command(\'post\',\'{"body":"পুরোনো ক্লায়েন্টের পোস্ট","mood":""}\')',
+    );
+    await db.query("select command('read','{}')");
+    expect(
+      (
+        await db.query(
+          "select count(*)::int total from comments where post_id=$1",
+          [postId],
+        )
+      ).rows[0],
+    ).toEqual({ total: 2 });
+    await db.exec("commit");
+    await db.exec(migrationSQL(migrations));
+    expect(await versions()).toEqual(migrations.map((m) => m.version));
+  });
   it("applies later migrations on a fresh installation and keeps history private", async () => {
     expect(migrations.length).toBeGreaterThan(1);
     await db.exec(migrationSQL(migrations));

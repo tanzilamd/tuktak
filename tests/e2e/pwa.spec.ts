@@ -430,7 +430,8 @@ test("authenticated desktop Home puts tabs directly after composer in both theme
   await expect(page).toHaveURL(/\/$/);
   await opportunity(page);
   await expect(page.locator(".install-card")).toHaveCount(0);
-  expect(await page.locator(".composer + .feed-tabs").count()).toBe(1);
+  // The redirect can stream Home before React removes its temporary markers.
+  await expect(page.locator(".composer + .feed-tabs")).toHaveCount(1);
   for (const theme of ["light", "dark"]) {
     await page.evaluate((t) => {
       document.documentElement.dataset.theme = t;

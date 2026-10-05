@@ -1,5 +1,11 @@
 import { z } from "zod";
 import {
+  mentionNames,
+  MENTION_LIMIT,
+  POLL_DURATIONS,
+  validPollOptions,
+} from "./engagement";
+import {
   ACCENTS,
   EDUCATION,
   HOBBIES,
@@ -69,13 +75,52 @@ export const profileSchema = z.object({
   onboarding: z.boolean().optional(),
 });
 const id = z.string().uuid();
+const mentionedText = (max: number) =>
+  text(max).refine(
+    (v) => mentionNames(v).length <= MENTION_LIMIT,
+    "সর্বোচ্চ ৫ জনকে উল্লেখ করো।",
+  );
+const postBody = z
+  .string()
+  .trim()
+  .refine((v) => charCount(v) <= 240, "২৪০ অক্ষরের মধ্যে লিখো।")
+  .refine(
+    (v) => mentionNames(v).length <= MENTION_LIMIT,
+    "সর্বোচ্চ ৫ জনকে উল্লেখ করো।",
+  );
 export const commandSchemas = {
-  post: z.object({
-    body: text(240),
-    mood: z.union([z.literal(""), z.enum(MOODS)]),
-  }),
+  post: z
+    .object({
+      body: postBody,
+      mood: z.union([z.literal(""), z.enum(MOODS)]),
+      quote_id: id.optional(),
+      poll_options: z
+        .array(z.string().trim())
+        .refine(
+          validPollOptions,
+          "২–৪টি আলাদা উত্তর দাও, প্রতিটি সর্বোচ্চ ৬০ অক্ষর।",
+        )
+        .optional(),
+      poll_duration: z.coerce
+        .number()
+        .refine(
+          (v) => (POLL_DURATIONS as readonly number[]).includes(v),
+          "পোলের সময় বেছে নাও।",
+        )
+        .optional(),
+    })
+    .refine(
+      (v) =>
+        (!!v.body || !!v.quote_id) &&
+        !(v.quote_id && v.poll_options) &&
+        (!v.poll_options || !!v.poll_duration),
+      "পোস্টের কথা ও পোলের তথ্য দেখে নাও।",
+    ),
+  edit_post: z.object({ id, body: postBody }),
+  vote_poll: z.object({ id, option_id: id }),
+  inbox_open: z.object({}),
   delete_post: z.object({ id }),
-  comment: z.object({ id, body: text(180) }),
+  comment: z.object({ id, body: mentionedText(180), parent_id: id.optional() }),
   delete_comment: z.object({ id }),
   react: z.object({ id, kind: z.enum(REACTIONS.map((r) => r.key)) }),
   follow: z.object({ id, enabled: z.boolean() }),

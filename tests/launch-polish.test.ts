@@ -150,7 +150,7 @@ describe("notification scope and presentation", () => {
   });
   it("links replies to their anchor and caps accessible badge labels", () => {
     expect(notificationHref({ ...entry, comment_id: "reply" })).toBe(
-      "/post/post#comment-reply",
+      "/post/post?comment=reply#comment-reply",
     );
     expect(notificationHref({ ...entry, kind: "follow", post_id: null })).toBe(
       `/u/${demoProfiles[0].username}`,

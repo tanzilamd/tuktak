@@ -135,6 +135,67 @@ test("real HTTP API denies forged authors, private queries and unauthorized mode
       headers: h,
       data: { action, payload },
     });
+  const createdPoll = await rpc(headers, "post", {
+    body: `Concurrent poll ${Date.now()}`,
+    mood: "",
+    poll_options: ["হ্যাঁ", "না"],
+    poll_duration: 3600,
+  });
+  expect(createdPoll.ok()).toBe(true);
+  const pollId = (await createdPoll.json()).id;
+  const pollRead = await request.post(`${base}/rest/v1/rpc/post_stats`, {
+    headers,
+    data: { ids: [pollId] },
+  });
+  const options = (await pollRead.json())[pollId].poll.options;
+  const votes = await Promise.all([
+    rpc(headers, "vote_poll", { id: pollId, option_id: options[0].id }),
+    rpc(headersB, "vote_poll", { id: pollId, option_id: options[0].id }),
+    rpc(headers, "vote_poll", { id: pollId, option_id: options[1].id }),
+  ]);
+  expect(votes.every((v) => v.ok())).toBe(true);
+  const counts = await request.post(`${base}/rest/v1/rpc/post_stats`, {
+    headers: anon,
+    data: { ids: [pollId] },
+  });
+  const aggregate = (await counts.json())[pollId].poll;
+  expect(
+    aggregate.options.reduce(
+      (n: number, o: { votes: number }) => n + o.votes,
+      0,
+    ),
+  ).toBe(2);
+  expect(aggregate.selected_option).toBeNull();
+  expect(JSON.stringify(aggregate)).not.toContain(sessionB.user.id);
+  for (const h of [anon, headers, headersB]) {
+    expect(
+      (
+        await request.get(`${base}/rest/v1/poll_votes?select=*`, { headers: h })
+      ).ok(),
+    ).toBe(false);
+    expect(
+      (
+        await request.get(`${base}/rest/v1/mention_receipts?select=*`, {
+          headers: h,
+        })
+      ).ok(),
+    ).toBe(false);
+  }
+  expect(
+    (
+      await rpc(headers, "edit_post", {
+        id: pollId,
+        body: "Still same poll",
+        poll_options: ["forged", "options"],
+      })
+    ).ok(),
+  ).toBe(false);
+  expect(
+    (
+      await rpc(headersB, "edit_post", { id: pollId, body: "forged owner" })
+    ).ok(),
+  ).toBe(false);
+  expect((await rpc(headers, "delete_post", { id: pollId })).ok()).toBe(true);
   const bPost = await rpc(headersB, "post", {
     body: `Concurrent block ${Date.now()}`,
     mood: "",

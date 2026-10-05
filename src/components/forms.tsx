@@ -1,5 +1,12 @@
 "use client";
-import { useActionState, useState, useRef, useId, type ReactNode } from "react";
+import {
+  useActionState,
+  useState,
+  useRef,
+  useId,
+  useEffect,
+  type ReactNode,
+} from "react";
 import { mutate, authenticate } from "@/app/actions";
 import {
   ACCENTS,
@@ -12,7 +19,7 @@ import {
   bn,
   charCount,
 } from "@/lib/config";
-import type { ActionState, Profile } from "@/lib/types";
+import type { ActionState, Profile, QuotePreview } from "@/lib/types";
 import { Send, Check, ArrowRight, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { FeedbackForm, FieldError, useFieldError } from "./form-feedback";
@@ -26,6 +33,14 @@ import { Captcha } from "./captcha";
 import { useInteraction, type InteractionCallbacks } from "./interaction";
 import { useFollowScope } from "./follow-state";
 import { readSocial } from "@/lib/social";
+import {
+  POLL_DURATIONS,
+  POLL_DURATION_LABELS,
+  mentionNames,
+  pollOptionKey,
+  validPollOptions,
+} from "@/lib/engagement";
+import { QuoteCard } from "./quote-preview";
 const initial: ActionState = { ok: false, message: "" };
 export function Result({ state }: { state: ActionState }) {
   return state.message ? (
@@ -155,16 +170,31 @@ export function Mutation({
 export function Composer({
   prompt = "",
   replyTo,
+  parentId,
+  quote,
   standalone = false,
   interaction,
   disabled = false,
 }: {
   prompt?: string;
   replyTo?: string;
+  parentId?: string;
+  quote?: QuotePreview;
   standalone?: boolean;
   interaction?: InteractionCallbacks;
   disabled?: boolean;
 }) {
+  const fieldId = useId();
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (parentId) inputRef.current?.focus();
+  }, [parentId]);
+  const [pollEnabled, setPollEnabled] = useState(false);
+  const [options, setOptions] = useState([
+    { key: "first", text: "" },
+    { key: "second", text: "" },
+  ]);
+  const [duration, setDuration] = useState("86400");
   const [body, setBody] = useState(prompt);
   const [mood, setMood] = useState("");
   const [serverState, submit, serverPending] = useActionState(
@@ -178,18 +208,27 @@ export function Composer({
     },
     initial,
   );
-  const draftRef = useRef({ body, mood });
+  const draftRef = useRef({ body, mood, pollEnabled, options, duration });
   const social = useInteraction({
     start(form) {
       if (interaction?.start?.(form) === false) return false;
-      draftRef.current = { body, mood };
+      draftRef.current = { body, mood, pollEnabled, options, duration };
       setBody("");
       setMood("");
+      setPollEnabled(false);
+      setOptions([
+        { key: "first", text: "" },
+        { key: "second", text: "" },
+      ]);
+      setDuration("86400");
     },
     async settle(result) {
       if (!result.ok) {
         setBody(draftRef.current.body);
         setMood(draftRef.current.mood);
+        setPollEnabled(draftRef.current.pollEnabled);
+        setOptions(draftRef.current.options);
+        setDuration(draftRef.current.duration);
       }
       await interaction?.settle?.(result);
     },
@@ -216,16 +255,26 @@ export function Composer({
     >
       <input type="hidden" name="action" value={replyTo ? "comment" : "post"} />
       {replyTo && <input type="hidden" name="id" value={replyTo} />}
+      {parentId && <input type="hidden" name="parent_id" value={parentId} />}
+      {quote && <input type="hidden" name="quote_id" value={quote.id} />}
+      {pollEnabled && (
+        <>
+          <input
+            type="hidden"
+            name="poll_options"
+            value={JSON.stringify(options.map((o) => o.text))}
+          />
+          <input type="hidden" name="poll_duration" value={duration} />
+        </>
+      )}
       {standalone && <input type="hidden" name="redirect" value="true" />}
-      <label
-        htmlFor={replyTo ? "reply" : "post-body"}
-        className="composer-heading"
-      >
+      <label htmlFor={fieldId} className="composer-heading">
         {replyTo ? "কথায় কথা বাড়ুক" : "মাথায় কী ঘুরছে?"}{" "}
         <span>{replyTo ? "💬" : "✦"}</span>
       </label>
       <textarea
-        id={replyTo ? "reply" : "post-body"}
+        ref={inputRef}
+        id={fieldId}
         name="body"
         readOnly={pending}
         value={body}
@@ -234,9 +283,110 @@ export function Composer({
           replyTo ? "প্রথম কথাটা তুমি বলবে?" : "আজকের আজাইরা ভাবনা কী?"
         }
         rows={replyTo ? 2 : 3}
-        required
-        aria-describedby="composer-count"
+        required={!quote}
+        aria-describedby={`${fieldId}-count`}
       />
+      {quote && <QuoteCard quote={quote} />}
+      {!replyTo && !quote && (
+        <div className="poll-compose-toggle">
+          <button
+            type="button"
+            className="button button-small button-quiet"
+            aria-expanded={pollEnabled}
+            disabled={pending}
+            onClick={() => setPollEnabled((v) => !v)}
+          >
+            {pollEnabled ? "পোল বাদ দিই" : "+ পোল"}
+          </button>
+        </div>
+      )}
+      {pollEnabled && (
+        <fieldset className="poll-compose" disabled={pending}>
+          <legend>পোলের উত্তর</legend>
+          {options.map((option, index) => (
+            <div key={option.key} className="poll-input-row">
+              <label htmlFor={`${fieldId}-option-${index}`}>
+                উত্তর {bn(index + 1)}
+              </label>
+              <input
+                id={`${fieldId}-option-${index}`}
+                value={option.text}
+                required
+                onChange={(e) =>
+                  setOptions((old) =>
+                    old.map((v, i) =>
+                      i === index ? { ...v, text: e.target.value } : v,
+                    ),
+                  )
+                }
+                aria-describedby={`${fieldId}-poll-hint`}
+              />
+              {options.length > 2 && (
+                <button
+                  type="button"
+                  className="button button-small button-quiet"
+                  aria-label={`উত্তর ${bn(index + 1)} সরাই`}
+                  onClick={() =>
+                    setOptions((old) => old.filter((_, i) => i !== index))
+                  }
+                >
+                  সরাই
+                </button>
+              )}
+            </div>
+          ))}
+          <p className="small muted" id={`${fieldId}-poll-hint`}>
+            ২–৪টি আলাদা উত্তর, প্রতিটি সর্বোচ্চ ৬০ অক্ষর।
+          </p>
+          {options.some((o) => charCount(o.text.trim()) > 60) && (
+            <p className="danger small" role="alert">
+              প্রতিটি উত্তর সর্বোচ্চ ৬০ অক্ষরের মধ্যে দাও।
+            </p>
+          )}
+          {options.every((o) => o.text.trim()) &&
+            new Set(options.map((o) => pollOptionKey(o.text))).size <
+              options.length && (
+              <p className="danger small" role="alert">
+                পোলের উত্তরগুলো আলাদা করে দাও।
+              </p>
+            )}
+          <div className="poll-compose-actions">
+            {options.length < 4 && (
+              <button
+                type="button"
+                className="button button-small button-quiet"
+                onClick={() =>
+                  setOptions((old) => [
+                    ...old,
+                    { key: crypto.randomUUID(), text: "" },
+                  ])
+                }
+              >
+                উত্তর যোগ করি
+              </button>
+            )}
+            <label>
+              সময়{" "}
+              <select
+                aria-label="পোলের সময়"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              >
+                {POLL_DURATIONS.map((v, i) => (
+                  <option key={v} value={v}>
+                    {POLL_DURATION_LABELS[i]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </fieldset>
+      )}
+      {mentionNames(body).length > 5 && (
+        <p className="danger small" role="alert">
+          সর্বোচ্চ ৫ জনকে উল্লেখ করো।
+        </p>
+      )}
       <div className="composer-bottom">
         {!replyTo ? (
           <label className="mood-select">
@@ -259,7 +409,7 @@ export function Composer({
         )}
         <div className="composer-submit">
           <span
-            id="composer-count"
+            id={`${fieldId}-count`}
             aria-live="polite"
             className={`counter ${count > max ? "danger" : ""}`}
           >
@@ -268,7 +418,14 @@ export function Composer({
           <button
             className="button button-primary"
             type="submit"
-            disabled={disabled || pending || !body.trim() || count > max}
+            disabled={
+              disabled ||
+              pending ||
+              (!body.trim() && !quote) ||
+              count > max ||
+              mentionNames(body).length > 5 ||
+              (pollEnabled && !validPollOptions(options.map((o) => o.text)))
+            }
           >
             {pending ? "যাচ্ছে…" : replyTo ? "উত্তর দিই" : "বলে ফেলি"}
             <Send size={16} />

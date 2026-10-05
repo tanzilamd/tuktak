@@ -7,6 +7,7 @@ import {
   followCounts,
   getPost,
   postStats,
+  batchPostStats,
   relationships,
 } from "@/lib/data";
 import type { SocialResult } from "@/lib/types";
@@ -18,6 +19,8 @@ const actions = new Set([
   "delete_comment",
   "delete_post",
   "follow",
+  "edit_post",
+  "vote_poll",
 ]);
 const failure = {
   ok: false,
@@ -32,6 +35,15 @@ function json(data: unknown, status = 200) {
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
   try {
+    if (params.has("stats")) {
+      const ids = z
+        .array(z.string().uuid())
+        .min(1)
+        .max(20)
+        .safeParse(params.get("stats")!.split(","));
+      if (!ids.success) return json(failure, 400);
+      return json({ ok: true, batchStats: await batchPostStats(ids.data) });
+    }
     if (params.has("follow")) {
       const id = z.string().uuid().safeParse(params.get("follow"));
       if (!id.success) return json(failure, 400);
@@ -46,7 +58,12 @@ export async function GET(request: NextRequest) {
       if (!id.success) return json(failure, 400);
       const [post, replies] = await Promise.all([
         getPost(id.data),
-        comments(id.data),
+        comments(
+          id.data,
+          z.string().uuid().safeParse(params.get("comment")).success
+            ? params.get("comment")!
+            : undefined,
+        ),
       ]);
       return json({ ok: true, post, comments: replies });
     }
@@ -112,13 +129,15 @@ export async function POST(request: NextRequest) {
     const action = String(form.get("action"));
     const id = String(form.get("id"));
     if (action === "post") result.post = await getPost(result.id!);
-    if (action === "react") result.stats = await postStats(id);
+    if (action === "edit_post") result.post = await getPost(id);
+    if (action === "react" || action === "vote_poll")
+      result.stats = await postStats(id);
     if (action === "comment" || action === "delete_comment") {
       const postId = action === "comment" ? id : String(form.get("post_id"));
       if (!z.string().uuid().safeParse(postId).success)
         return json({ ...result, uncertain: true });
       [result.comments, result.stats] = await Promise.all([
-        comments(postId),
+        comments(postId, action === "comment" ? result.id : undefined),
         postStats(postId),
       ]);
     }

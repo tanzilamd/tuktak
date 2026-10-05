@@ -15,7 +15,7 @@ function popularPosts(posts: Post[]) {
 }
 export const PUBLIC_PROFILE =
   "id,username,display_name,bio,education,institution,class_year,ssc_batch,hsc_batch,hobbies,status,accent,discoverable,created_at";
-export const POST_SELECT = `id,author_id,body,mood,created_at,profiles!posts_author_id_fkey(${PUBLIC_PROFILE})`;
+export const POST_SELECT = `id,author_id,body,mood,created_at,updated_at,is_quote,quoted_post_id,profiles!posts_author_id_fkey(${PUBLIC_PROFILE})`;
 export const viewer = cache(async (): Promise<Viewer | null> => {
   const client = await db();
   if (!client) return null;
@@ -158,19 +158,27 @@ export const getProfile = cache(async (username: string) => {
     .maybeSingle();
   return checked(data, error) as Profile | undefined;
 });
-export async function comments(id: string): Promise<Comment[]> {
+export async function comments(
+  id: string,
+  focusId?: string,
+): Promise<Comment[]> {
   const client = await db();
   if (!client) return [];
-  const { data, error } = await client
-    .from("comments")
-    .select(
-      `id,post_id,author_id,body,created_at,profiles!comments_author_id_fkey(${PUBLIC_PROFILE})`,
-    )
-    .eq("post_id", id)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: false })
-    .limit(100);
+  const { data, error } = await client.rpc("discussion_comments", {
+    pid: id,
+    focus_id: focusId ?? null,
+  });
   return checked(data, error) as unknown as Comment[];
+}
+export async function batchPostStats(
+  ids: string[],
+): Promise<Record<string, PostStats>> {
+  const client = await db();
+  if (!client) return {};
+  const { data, error } = await client.rpc("post_stats", {
+    ids: [...new Set(ids)].slice(0, 20),
+  });
+  return checked(data, error);
 }
 export async function people(query = ""): Promise<Profile[]> {
   const client = await db();

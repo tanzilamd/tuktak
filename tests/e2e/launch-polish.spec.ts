@@ -41,7 +41,7 @@ test.beforeEach(() => {
     throw new Error("Fictional fixture tests require loopback");
 });
 
-test("notification opening, individual/group/all reads and badges stay recipient-scoped", async ({
+test("inbox entry reads only its snapshot, keeps entry highlights, and preserves later/foreign unread rows", async ({
   page,
 }) => {
   sql("truncate public.notifications");
@@ -49,60 +49,66 @@ test("notification opening, individual/group/all reads and badges stay recipient
     `insert into public.posts(author_id,body) values('${rafi}','launch notification fixture') returning id`,
   ).split("\n")[0];
   sql(
-    `insert into public.notifications(recipient_id,actor_id,kind,post_id,event_key) values ('${rafi}','${mithi}','reaction','${post}','launch:reaction1'),('${rafi}','${ayon}','reaction','${post}','launch:reaction2'),('${rafi}','${mithi}','follow',null,'launch:follow'),('${mithi}','${rafi}','follow',null,'launch:foreign')`,
+    `insert into notifications(recipient_id,actor_id,kind,post_id,event_key) values ('${rafi}','${mithi}','reaction','${post}','launch:reaction1'),('${rafi}','${ayon}','reaction','${post}','launch:reaction2'),('${rafi}','${mithi}','follow',null,'launch:follow'),('${mithi}','${rafi}','follow',null,'launch:foreign')`,
   );
   await login(page);
-  const badge = page
+  await expect(
+    page
+      .locator(".desktop-nav")
+      .getByRole("link", { name: "খবর, ৩টি অপঠিত", exact: true }),
+  ).toBeVisible();
+  // A normal RSC prefetch must never invoke inbox_open.
+  await page
     .locator(".desktop-nav")
-    .getByRole("link", { name: "খবর, ৩টি অপঠিত", exact: true });
-  await expect(badge).toBeVisible();
-  await page.goto("/notifications");
-  await expect(page.locator(".notification.unread")).toHaveCount(2);
+    .getByRole("link", { name: "খবর, ৩টি অপঠিত", exact: true })
+    .hover();
   expect(
     sql(
       `select count(*) from notifications where recipient_id='${rafi}' and read_at is null`,
     ),
   ).toBe("3");
-  const reaction = page
-    .locator(".notification")
-    .filter({ hasText: "প্রতিক্রিয়া" });
-  await reaction.getByRole("link").click();
-  await expect(page).toHaveURL(new RegExp(`/post/${post}`));
-  await expect(
-    page
-      .locator(".desktop-nav")
-      .getByRole("link", { name: "খবর, ১টি অপঠিত", exact: true }),
-  ).toBeVisible();
-  expect(
-    sql(
-      `select count(*) from notifications where recipient_id='${mithi}' and read_at is null`,
-    ),
-  ).toBe("1");
   await page.goto("/notifications");
-  await page
-    .locator(".notification.unread")
-    .getByRole("button", { name: "পড়েছি ✓" })
-    .click();
+  await expect(page.locator(".notification.entry-new")).toHaveCount(2);
   await expect(page.locator(".notification.unread")).toHaveCount(0);
-  await expect(page.locator(".desktop-nav .notification-badge")).toHaveCount(0);
-  sql(
-    `insert into public.notifications(recipient_id,actor_id,kind,event_key) values('${rafi}','${ayon}','follow','launch:all')`,
-  );
-  await page.reload();
-  await page.getByRole("button", { name: "সব পড়া হয়েছে" }).click();
-  await expect(page.locator(".notification.unread")).toHaveCount(0);
+  await expect(page.locator(".notification-badge")).toHaveCount(0);
   expect(
     sql(
       `select count(*) from notifications where recipient_id='${rafi}' and read_at is null`,
     ),
   ).toBe("0");
+  sql(
+    `insert into notifications(recipient_id,actor_id,kind,event_key) values('${rafi}','${ayon}','follow','launch:later')`,
+  );
+  await page.getByRole("heading", { name: "খবর 🔔" }).focus();
+  await expect(page.locator(".notification.entry-new")).toHaveCount(2);
+  expect(
+    sql(
+      `select count(*) from notifications where recipient_id='${rafi}' and read_at is null`,
+    ),
+  ).toBe("1");
+  await page
+    .locator(".notification")
+    .filter({ hasText: "প্রতিক্রিয়া" })
+    .getByRole("link")
+    .click();
+  await expect(page).toHaveURL(new RegExp(`/post/${post}`));
+  await page.goBack();
+  await expect(page.locator(".notification.entry-new")).toHaveCount(1);
+  expect(
+    sql(
+      `select count(*) from notifications where recipient_id='${rafi}' and read_at is null`,
+    ),
+  ).toBe("0");
+  await page.reload();
+  await expect(page.locator(".notification")).toHaveCount(3);
+  await expect(page.locator(".notification.entry-new")).toHaveCount(0);
   expect(
     sql(
       `select count(*) from notifications where recipient_id='${mithi}' and read_at is null`,
     ),
   ).toBe("1");
   sql(
-    `delete from public.posts where id='${post}'; delete from notifications where event_key like 'launch:%'`,
+    `delete from posts where id='${post}'; delete from notifications where event_key like 'launch:%'`,
   );
 });
 
@@ -151,6 +157,13 @@ test("badge caps at 99+ with stable mobile/desktop placement and accessible name
       });
     }
   await page.goto("/notifications");
+  await expect
+    .poll(() =>
+      sql(
+        `select count(*) from notifications where recipient_id='${rafi}' and read_at is null`,
+      ),
+    )
+    .toBe("5");
   await page.getByRole("button", { name: "সব পড়া হয়েছে" }).click();
   await expect(page.locator(".notification-badge")).toHaveCount(0);
   expect(

@@ -14,7 +14,7 @@ Password updates require an authenticated recovery/session user, then request gl
 
 ## Authorization and RLS
 
-All 15 application tables enable RLS. Direct table insert/update/delete grants are revoked from `anon` and `authenticated`, including for the table owner's public profile. The sole mutation RPC is `public.command(action,payload)`:
+All 19 application tables enable RLS. Direct table insert/update/delete grants are revoked from `anon` and `authenticated`, including for the table owner's public profile. The sole mutation RPC is `public.command(action,payload)`:
 
 - Caller identity comes from `auth.uid()`, never an author/role field in form data.
 - Verified email and current suspension status are checked in PostgreSQL.
@@ -42,7 +42,7 @@ Provider logs may contain operational identity/IP metadata. The application does
 
 ## Input, rendering and web controls
 
-Zod validates every application action boundary. Database constraints independently enforce usernames (lowercase/unique/safe/reserved), nonempty post/comment bodies, 240/180 Unicode codepoints, bio length, allowed hobbies/moods/reactions, unique relationships, no self-follow and one reaction per user/post.
+Zod validates every application action boundary. Database constraints independently enforce usernames (lowercase/unique/safe/reserved), nonempty post/comment bodies (empty commentary is allowed only on a quote), 240/180 Unicode codepoints, bio length, allowed hobbies/moods/reactions, unique relationships, no self-follow and one reaction per user/post.
 
 SQL uses static commands with typed JSON/UUID arguments. React escapes text; `RichText` builds links as React nodes and only permits HTTP/HTTPS URLs. External links use `noopener noreferrer nofollow ugc`. Hashtags are parsed as Unicode text, encoded in URLs and revalidated on hashtag pages. No `dangerouslySetInnerHTML`, remote metadata fetching or arbitrary user CSS is used.
 
@@ -50,7 +50,7 @@ Next.js server actions perform same-origin checks; production proxies must prese
 
 ## Abuse controls and moderation
 
-PostgreSQL serializes each user's mutation transaction with an advisory lock, then checks request receipts. A shared per-pair lock also serializes reactions/replies/follows/reports with bilateral block changes, preventing an interaction from slipping past a concurrent block. Per ten minutes: posts 10, comments 20, follows/blocks/mutes 40, reports 5, reactions 100. Repeated identical posts/comments within ten minutes are rejected. Receipts older than a day are purged when that user makes another rate-limited request; inactive-user receipts can be pruned periodically by a trusted owner maintenance job. Deleting posts does not erase current rate receipts. Limits apply to direct RPC calls too, not just buttons.
+PostgreSQL serializes each user's mutation transaction with an advisory lock, then checks request receipts. A shared per-pair lock also serializes reactions/replies/follows/reports with bilateral block changes, preventing an interaction from slipping past a concurrent block. Per ten minutes: posts 10, comments 20, follows/blocks/mutes 40, reports 5, reactions/poll votes 100 and post edits 10. Repeated identical posts/comments within ten minutes are rejected. Receipts older than a day are purged when that user makes another rate-limited request; inactive-user receipts can be pruned periodically by a trusted owner maintenance job. Deleting posts does not erase current rate receipts. Limits apply to direct RPC calls too, not just buttons.
 
 Auth has separate provider limits. Configure Auth CAPTCHA and reliable SMTP for public registration; the app's database limits cannot prevent account farming, provider-level abuse, volumetric DDoS or hostile distributed scraping. Use the hosting/provider's appropriate network protections without adding invasive tracking.
 
@@ -58,7 +58,7 @@ Reports contain reason/optional notes and a target ID, not a public reporter ide
 
 ## Deletion and retention
 
-Post deletion cascades through comments, reactions, tags and related notifications. Comment deletion removes its notifications. Account deletion requires exactly `DELETE` at the database/RPC boundary plus explicit browser confirmation. The null-safe SQL guard rejects missing, null, incorrect, padded and differently cased values. Successful deletion removes the Auth user and cascades private profiles/account data, social content and relationships. Reports set reporter ID to null; audits set actor ID to null so accountability history is retained without a live identity link. Report target IDs and free-text notes may remain; they can contain personal text voluntarily entered by reporters/staff. Provider backups have their own retention.
+Post deletion cascades through comments, reactions, tags, polls/options/votes, mention receipts and related notifications. Quote references to deleted originals become null while quote posts remain. Root-comment deletion cascades its child replies and their notifications/receipts. Account deletion requires exactly `DELETE` at the database/RPC boundary plus explicit browser confirmation. The null-safe SQL guard rejects missing, null, incorrect, padded and differently cased values. Successful deletion removes the Auth user and cascades private profiles/account data, social content and relationships. Reports set reporter ID to null; audits set actor ID to null so accountability history is retained without a live identity link. Report target IDs and free-text notes may remain; they can contain personal text voluntarily entered by reporters/staff. Provider backups have their own retention.
 
 The owner must set a retention policy. Review closed reports/audits and remove sensitive free text when no longer needed. A suggested initial policy is 90 days for closed reports, with longer restricted audit retention only when justified; verify legal/operational requirements rather than silently adopting this suggestion. Never implement a public audit/report export.
 
@@ -86,3 +86,17 @@ Auth session cookies use `Secure` when the configured canonical site is HTTPS, c
 ## Optimistic social endpoint
 
 `/api/social` uses the same server-only command validator and caller-session RPC as Server Actions. POST additionally enforces a matching HTTP(S) Origin/routed Host, JSON-only requests and a 4 KiB streamed body limit. Its allowlist excludes role, moderation, profile, safety and account operations. Read/mutation responses contain only public profiles/content, aggregate statistics and follow state/counts, with private/no-store headers. Optimistic client controls never authorize a command. Lost responses are not retried as writes; scoped reads reconcile possible commits. Feed caches are session-local, short-lived and invalidated on mutations; authoritative safety revalidation resets their snapshots.
+
+## Engagement authorization and privacy
+
+The forward engagement migration preserves legacy commands and their guards. New writes remain branches of `public.command`, with caller identity, verified email, suspension, per-user serialization, rate receipts and globally sorted affected bilateral locks. No runtime service role is introduced. Post edits lock the owned row, require current visibility and use `clock_timestamp()` after waits to enforce the 15-minute window; only body text changes. Hidden posts cannot bypass moderation through editing. Poll choices, quote source and post type are immutable at this boundary.
+
+`comments.parent_id` points to a same-post root; a trigger rejects deeper/forged relationships and the command flattens reply-to-reply. Child visibility includes post, child actor and root actor/hidden/block/mute checks. Bounded nonrecursive discussion reads return only public actor fields. Reports continue to use parent-aware visibility and existing staff authorization.
+
+Mention fan-out is at most five distinct names. Public resolution uses current visibility without Auth/private joins. Invalid names are not an account-existence error. Recipient eligibility checks their block/mute/suspension and parent-content visibility; self notifications and repeated per-content recipients are suppressed. `mention_receipts` has neither caller SELECT access nor write grants. Internal recipient-perspective helpers and actor projections are not callable by application roles.
+
+Quotes are references to a visible root, not copied private snapshots. `post_stats` rechecks source visibility on every read and exposes only escaped text and a minimal public author projection. Deletion/hidden/block/mute/suspension produces a generic unavailable preview. A quoted poll does not duplicate options or votes.
+
+`poll_votes` has a unique `(post_id,user_id)` key and a composite option/poll foreign key. Its rows and identities are not readable by anonymous or authenticated application roles. The aggregate RPC returns option totals and only the current caller's selected option; it never returns voter IDs/lists. Direct poll/vote/option/receipt writes remain revoked and all four new tables enable RLS. Expiry uses database wall clock after authorization/locks, rejects both new and changed votes and never hides/deletes the parent post. Poll reads require current parent visibility. Parent deletion cascades the poll; account deletion removes that account's votes, so aggregate totals can decrease afterward.
+
+Mounted inbox entry calls an atomic bounded snapshot/read command. Read updates always include the caller's recipient ID and captured UUIDs; later arrivals are not included. An RSC prefetch cannot execute this client-mount action. Highlights are local ID sets, not identity/session storage. The explicit backlog mark-all action and legacy scoped reads remain authorized only for that recipient. No private/global cache, polling, new analytics or PWA cache interception is introduced.

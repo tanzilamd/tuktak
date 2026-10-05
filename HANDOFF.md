@@ -28,9 +28,9 @@ Do not post any secret in GitHub issues, chat, screenshots, source files or clie
 
 1. For current production, verify the project reference above before any command; inspect native history and take an appropriate recoverable backup before changes. For a new environment only, create a separate project in a suitable nearby region and save its **database password privately**.
 2. Open **Project Settings → API / API Keys**. Record the project URL and **publishable key** (or legacy **anon** key). These two values are public safe. **Do not use service-role or secret API keys.**
-3. For a fresh project, apply the entire ordered chain: `202610040001_core.sql`, `20261004000200_preproduction_guards.sql`, then `20261004000300_auth_phone_privacy.sql` under `supabase/migrations/`. The first creates the 15-table schema and RLS/RPCs. The second enforces null-safe deletion consent and stale-onboarding protection. The third prevents GoTrue from restoring phone metadata after signup and cleans existing metadata only where private phone storage already exists. For an existing project, inspect native migration history and apply only pending files; preserve all accounts/data and original version records. There is no media bucket.
+3. For a fresh project, apply the entire ordered chain under `supabase/migrations/`: `202610040001_core.sql`, `20261004000200_preproduction_guards.sql`, `20261004000300_auth_phone_privacy.sql`, `20261005000100_launch_polish.sql`, `20261005000200_batch_whitespace.sql`, `20261005000300_engagement.sql`, then `20261005000400_mention_boundaries.sql`. The first creates the original 15-table schema and RLS/RPCs; later files preserve deletion/onboarding/phone protections, refine profile validation and add engagement extensions. The complete chain has 19 application tables. For an existing project, inspect native migration history and apply only pending files; preserve all accounts/data and original version records. There is no media bucket.
 4. Do **not** run `supabase/seed.sql` in production. It contains only development users with shared development passwords.
-5. Verify the schema with the SQL below. All 15 rows must have `relrowsecurity = true`.
+5. Verify the schema with the SQL below. All 19 rows must have `relrowsecurity = true`.
 
 ```sql
 select c.relname, c.relrowsecurity
@@ -60,7 +60,7 @@ from supabase_migrations.schema_migrations
 order by version;
 ```
 
-Expect all five versions listed above. A version record alone is insufficient: compare its stored `statements` to the committed file and verify the changed tables/constraints/policies/functions/triggers. Never print private table contents, credentials or Auth tokens as part of this check.
+The historical five versions listed above must remain; the engagement app additionally requires `20261005000300_engagement.sql` and `20261005000400_mention_boundaries.sql` (sixth/seventh versions). A version record alone is insufficient: compare its stored `statements` to the committed file and verify the changed tables/constraints/policies/functions/triggers. Never print private table contents, credentials or Auth tokens as part of this check.
 
 Never use `db reset` against production. After initial deployment, add new migration files; do not edit already-applied migrations or reset real accounts. The fictional local stack's `tuktak_local.migrations` ledger is not the hosted migration workflow; do not create it on production.
 
@@ -175,17 +175,17 @@ Sign in again and open `/moderation` and `/admin`. Admins can grant/remove **mod
 - [ ] Block works in both directions; mute is private; unblock/unmute work.
 - [ ] Reports are private; normal users cannot query reports, impersonate authors or use moderation/admin RPCs.
 - [ ] Moderator can dismiss/hide/remove/suspend/unsuspend; admin role changes generate audit records.
-- [ ] Notifications mark one, an aggregate group or all read without marking unrelated groups.
+- [ ] Inbox entry marks only its bounded unread snapshot read, preserves entry highlights, and leaves later/foreign arrivals unread; explicit backlog mark-all remains.
 - [ ] Mobile navigation, Bengali typography, light/dark/system appearance and keyboard focus work on real Android/iOS browsers.
 - [ ] Account deletion requires `DELETE` plus confirmation and removes related private/social rows.
-- [ ] Direct deletion RPC calls with missing, null or incorrect confirmation fail; only exact `DELETE` succeeds. Verify the entire three-migration chain, including the phone-metadata guard, before enabling public registration.
+- [ ] Direct deletion RPC calls with missing, null or incorrect confirmation fail; only exact `DELETE` succeeds. Verify the entire ordered migration chain, including the phone-metadata guard, before enabling public registration.
 - [ ] Owner support/appeals contact is published, moderation coverage exists, Auth abuse limits are configured, and backup/retention procedures are reviewed.
 
 ## Operations and remaining boundaries
 
 Read `SECURITY.md`. Supabase Auth/provider logs can retain operational metadata; the app does not publish IPs or collect GPS. Blocking applies to signed-in users and cannot conceal inherently public posts from someone logged out. Discovery opt-out is not a private-account feature. Free text in retained reports/audits and provider backups needs an explicit owner retention policy.
 
-Pagination is bounded for MVP: feed pages have 20 posts, guest feed 8, discussions and lists 100, tag lookup 200, and following/institution lookups 1,000 people. Plan measured pagination improvements before exceeding those bounds. There is no realtime push, phone OTP, Google OAuth, automated content moderation or email notification service beyond Auth. SMTP delivery and production hosting have prior evidence; owner configuration/quotas and fresh recovery delivery still need periodic verification. CAPTCHA, an additional custom domain, Docker application packaging, real devices and backup/load recovery are separate acceptance items, not implied by a passing local test suite.
+Pagination is bounded for MVP: feed pages have 20 posts, guest feed 8, lists 100, discussions 100 recent/focused comments plus missing roots (at most 200), tag lookup 200, and following/institution lookups 1,000 people. Plan measured pagination improvements before exceeding those bounds. There is no realtime push, phone OTP, Google OAuth, automated content moderation or email notification service beyond Auth. SMTP delivery and production hosting have prior evidence; owner configuration/quotas and fresh recovery delivery still need periodic verification. CAPTCHA, an additional custom domain, Docker application packaging, real devices and backup/load recovery are separate acceptance items, not implied by a passing local test suite.
 
 ## Safe production QA and maintenance
 
@@ -201,7 +201,7 @@ For a managed cloud audit, management credentials need the operation's specific 
 
 The new forward files are `20261005000100_launch_polish.sql` (40-codepoint status, profile-input trigger and partial unread index) and `20261005000200_batch_whitespace.sql` (match JavaScript Unicode whitespace trimming for numeric batches). They do not backfill or alter existing account/profile/accent values, RLS, grants or Auth. Preserve all previously applied migration bytes. Apply both in order, atomically with native history, before pushing the app build. Never load local seed/test data or the local migration ledger on production.
 
-Unread badges are recipient-scoped and capped at ৯৯+, with no polling. Inbox visits do not read entries; following a link or its read button reads only that group. Mark-all-read remains explicit. Optional status is 40 Unicode codepoints; Bengali/ASCII batches store ASCII under existing year limits. New Terms and refined privacy/community wording are factual product guidance, not legal review. The operator owns mail delivery, moderation coverage, appeals and retention.
+Unread badges are recipient-scoped and capped at ৯৯+, with no polling. The launch-polish version used explicit group reads; the engagement version supersedes this with a mounted-entry snapshot and retained new highlight. Legacy scoped reads and explicit backlog mark-all remain compatible. Optional status is 40 Unicode codepoints; Bengali/ASCII batches store ASCII under existing year limits. New Terms and refined privacy/community wording are factual product guidance, not legal review. The operator owns mail delivery, moderation coverage, appeals and retention.
 
 ## Safe PWA V1 deployment
 
@@ -212,3 +212,13 @@ Changing the offline bundle requires a new `tuktak-offline-*` cache version in `
 ## Mobile/tablet targeting and performance operations
 
 The Home install card is promoted only on supported phones/tablets; desktop browser installation remains available without an in-product card. Preserve its existing styling, preference format and offline-only worker policy. Vercel functions use the single Mumbai region `bom1` in `vercel.json`, beside Supabase `ap-south-1`; verify the actual live function region after deploying. Do not substitute deprecated Next.js `preferredRegion` exports. See [PERFORMANCE.md](PERFORMANCE.md) for bounded measurements, production-fixture safety, provider monitoring and infrastructure-decision limits. No paid service or database migration is introduced.
+
+## Engagement schema-first release
+
+1. Review the complete diff and passing full regression evidence. Confirm the native hosted migration history and backup/recovery readiness without printing private data. The pending migrations are `20261005000300_engagement.sql` and `20261005000400_mention_boundaries.sql`; all existing migration bytes remain unchanged.
+2. Apply only those pending files in order through the authorized native hosted migration workflow, atomically with its native history record. Do not deploy fictional seeds, the local ledger, resets or account/admin repairs. The migration is additive to stored posts/comments: existing creation times/content/reactions remain; new parent/edit/quote fields default to legacy behavior. It adds polls/options/private votes/internal mention receipts and safe read/command extensions. The follow-up aligns URL-adjacent Unicode whitespace mention parsing with JavaScript.
+3. Verify 19 RLS-enabled application tables, revoked direct writes and no SELECT grant/policy for vote identities/mention receipts. Confirm `post_stats`, `discussion_comments` and extended `command` definitions/grants against the reviewed file. Existing old normal-post/comment/reaction/read requests work against the upgraded schema. Old clients may display new quote/poll posts as plain text and new notification kinds with generic legacy wording; they retain authorized operations. Empty-commentary quotes may appear as an empty legacy post until the client updates. No old app HTML/code is cached by the worker.
+4. Deploy the validated app after schema verification. The new app requires the upgraded columns/RPCs; do not publish it against the old schema. If app rollback is necessary, retain the compatible schema and data; do not roll back/delete new content or edit applied migrations. The offline bundle is unchanged, so no worker cache-version bump is needed.
+5. Verify Production/CI separately and health, login/feed, existing reactions/follows/deletes/safety, a one-level reply and notification link, entry auto-read/new-arrival scope, valid/invalid mentions, allowed/expired edits, flattened/unavailable quotes, poll creation/vote/change/closed state and retained expired results. Use only designated owned fixtures and independently verify cleanup. Check normal/installed Android and iPhone/iPad, mobile data, light/dark and keyboard behavior; simulation is not physical-device verification.
+
+No production schema, secrets, roles, data or deployment is changed merely by local implementation/validation. Publishing requires task authorization under AGENTS. See VALIDATION for the exact current status.

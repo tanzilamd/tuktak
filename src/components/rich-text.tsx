@@ -1,9 +1,24 @@
 import Link from "next/link";
-export function RichText({ text }: { text: string }) {
+import { mentionPattern } from "@/lib/engagement";
+export function RichText({
+  text,
+  mentions = [],
+}: {
+  text: string;
+  mentions?: string[];
+}) {
+  const validMentions = new Set(mentions);
+  const mentionPositions = new Set(
+    [
+      ...text
+        .replace(/https?:\/\/[^\s<>]+/gi, (url) => " ".repeat(url.length))
+        .matchAll(mentionPattern()),
+    ].map((m) => m.index + m[0].indexOf("@")),
+  );
   const parts: { text: string; position: number }[] = [];
   let cursor = 0;
   for (const match of text.matchAll(
-    /https?:\/\/[^\s<>]+|#[\p{L}\p{M}\p{N}_]{1,40}/gu,
+    /https?:\/\/[^\s<>]+|#[\p{L}\p{M}\p{N}_]{1,40}|@[A-Za-z0-9_]{3,20}(?![A-Za-z0-9_])/gu,
   )) {
     const position = match.index;
     if (position > cursor)
@@ -16,6 +31,21 @@ export function RichText({ text }: { text: string }) {
   return (
     <>
       {parts.map(({ text: part, position }) => {
+        if (
+          part.startsWith("@") &&
+          mentionPositions.has(position) &&
+          validMentions.has(part.slice(1).toLowerCase())
+        )
+          return (
+            <Link
+              key={position}
+              className="mention"
+              href={`/u/${part.slice(1).toLowerCase()}`}
+              prefetch={false}
+            >
+              {part}
+            </Link>
+          );
         if (/^https?:\/\//.test(part)) {
           try {
             const url = new URL(part);

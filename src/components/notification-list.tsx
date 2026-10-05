@@ -2,7 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { markNotificationsRead } from "@/app/actions";
+import { markNotificationsRead, openInbox } from "@/app/actions";
 import {
   notificationGroups,
   notificationHref,
@@ -14,21 +14,63 @@ import { Timestamp } from "./timestamp";
 import { Empty } from "./empty";
 import { Result } from "./forms";
 import { useNotificationCount } from "./notification-count";
-export function NotificationList({
-  entries,
-  unreadCount,
-}: {
-  entries: Notification[];
-  unreadCount: number;
-}) {
-  const [local, setLocal] = useState({ source: entries, entries });
-  const items = local.source === entries ? local.entries : entries;
+export function NotificationList() {
+  const [items, setItems] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
+  const [entryIds, setEntryIds] = useState(() => new Set<string>());
+  const openRef = useRef<ReturnType<typeof openInbox> | null>(null);
+  const generationRef = useRef(0);
   const [pending, setPending] = useState(false);
   const lockRef = useRef(false);
   const [state, setState] = useState({ ok: false, message: "" });
   const { count, update } = useNotificationCount();
   const router = useRouter();
-  useEffect(() => update(unreadCount), [unreadCount, update]);
+  const updateRef = useRef(update);
+  useEffect(() => {
+    updateRef.current = update;
+  }, [update]);
+  useEffect(() => {
+    let active = true;
+    function enter() {
+      const generation = ++generationRef.current;
+      openRef.current ??= openInbox();
+      void openRef.current
+        .then((result) => {
+          if (!active || generation !== generationRef.current) return;
+          if (result.ok && result.entries && result.entryUnreadIds) {
+            setItems(result.entries);
+            setEntryIds(new Set(result.entryUnreadIds));
+            updateRef.current(result.unreadCount ?? 0);
+          } else setState({ ok: false, message: result.message });
+          setLoading(false);
+        })
+        .catch(() => {
+          if (active && generation === generationRef.current) {
+            setState({
+              ok: false,
+              message: "খবরগুলো খোলা গেল না। আবার চেষ্টা করো।",
+            });
+            setLoading(false);
+          }
+        });
+    }
+    enter();
+    function restored(event: PageTransitionEvent) {
+      if (!event.persisted) return;
+      openRef.current = null;
+      setItems([]);
+      setEntryIds(new Set());
+      setState({ ok: false, message: "" });
+      setLoading(true);
+      enter();
+    }
+    window.addEventListener("pageshow", restored);
+    return () => {
+      active = false;
+      window.removeEventListener("pageshow", restored);
+    };
+  }, [attempt]);
   async function read(ids?: string[], href?: string) {
     if (lockRef.current) return;
     lockRef.current = true;
@@ -41,14 +83,13 @@ export function NotificationList({
         return;
       }
       update(result.unreadCount ?? count);
-      setLocal({
-        source: entries,
-        entries: items.map((n) =>
+      setItems(
+        items.map((n) =>
           !ids || ids.includes(n.id)
             ? { ...n, read_at: n.read_at ?? new Date().toISOString() }
             : n,
         ),
-      });
+      );
       if (href) router.push(href);
     } catch {
       setState({
@@ -64,17 +105,36 @@ export function NotificationList({
     <>
       <div className="page-top">
         <h1>খবর 🔔</h1>
-        <button
-          type="button"
-          className="button button-small button-quiet"
-          disabled={pending || count === 0}
-          onClick={() => void read()}
-        >
-          সব পড়া হয়েছে
-        </button>
+        {count > 0 && !loading && (
+          <button
+            type="button"
+            className="button button-small button-quiet"
+            disabled={pending}
+            onClick={() => void read()}
+          >
+            সব পড়া হয়েছে
+          </button>
+        )}
       </div>
       <Result state={state} />
-      {!items.length ? (
+      {loading ? (
+        <p className="muted" role="status">
+          খবরগুলো আসছে…
+        </p>
+      ) : state.message && !items.length ? (
+        <button
+          className="button button-small button-quiet"
+          type="button"
+          onClick={() => {
+            openRef.current = null;
+            setState({ ok: false, message: "" });
+            setLoading(true);
+            setAttempt((n) => n + 1);
+          }}
+        >
+          আবার চেষ্টা করি
+        </button>
+      ) : !items.length ? (
         <Empty
           emoji="😌"
           title="এখনো কোনো খবর নাই।"
@@ -82,16 +142,19 @@ export function NotificationList({
         />
       ) : (
         <div className="notification-list card" aria-busy={pending}>
-          {notificationGroups(items).map((group) => {
+          {notificationGroups(items, entryIds).map((group) => {
             const n = group[0],
               href = notificationHref(n);
             return (
               <article
                 key={group.map((entry) => entry.id).join(":")}
-                className={`notification ${n.read_at ? "" : "unread"}`}
+                className={`notification ${entryIds.has(n.id) ? "entry-new" : n.read_at ? "" : "unread"}`}
               >
                 <Avatar profile={n.profiles} />
                 <div>
+                  {entryIds.has(n.id) && (
+                    <span className="sr-only">নতুন খবর। </span>
+                  )}
                   <Link
                     href={href}
                     onClick={(event) => {
@@ -121,11 +184,17 @@ export function NotificationList({
                     {group.length > 1
                       ? ` এবং আরও ${bn(group.length - 1)} জন`
                       : ""}
-                    {n.kind === "follow"
-                      ? " তোমার সাথে আছে।"
-                      : n.kind === "comment"
-                        ? " তোমার কথায় উত্তর দিয়েছে।"
-                        : " তোমার পোস্টে প্রতিক্রিয়া দিয়েছে।"}
+                    {n.kind === "reply"
+                      ? " তোমার উত্তরে জবাব দিয়েছে।"
+                      : n.kind === "mention"
+                        ? " তোমাকে উল্লেখ করেছে।"
+                        : n.kind === "quote"
+                          ? " তোমার কথা আবার শেয়ার করেছে।"
+                          : n.kind === "follow"
+                            ? " তোমার সাথে আছে।"
+                            : n.kind === "comment"
+                              ? " তোমার কথায় উত্তর দিয়েছে।"
+                              : " তোমার পোস্টে প্রতিক্রিয়া দিয়েছে।"}
                   </Link>
                   <small>
                     <Timestamp value={n.created_at} />

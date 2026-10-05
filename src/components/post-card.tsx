@@ -1,13 +1,23 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { MessageCircle, MoreHorizontal, ArrowUpRight } from "lucide-react";
+import {
+  MessageCircle,
+  MoreHorizontal,
+  ArrowUpRight,
+  Repeat2,
+} from "lucide-react";
 import { Timestamp } from "./timestamp";
 import { Avatar } from "./avatar";
 import { RichText } from "./rich-text";
 import { Mutation, Result } from "./forms";
 import { toggleReaction, readSocial } from "@/lib/social";
 import { REACTIONS, bn } from "@/lib/config";
+import { EDIT_WINDOW } from "@/lib/engagement";
+import { exactTime } from "@/lib/time";
+import { QuoteCard } from "./quote-preview";
+import { PollCard } from "./poll-card";
+import { PostEditor } from "./post-editor";
 import type { Post, Viewer, Profile } from "@/lib/types";
 export function PostCard({
   post,
@@ -28,6 +38,15 @@ export function PostCard({
 }) {
   const [local, setLocal] = useState({ source: post, stats: post });
   const [reactionPending, setReactionPending] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editable, setEditable] = useState(
+    () => Date.now() < Date.parse(post.created_at) + EDIT_WINDOW,
+  );
+  useEffect(() => {
+    const left = Date.parse(post.created_at) + EDIT_WINDOW - Date.now();
+    const timer = setTimeout(() => setEditable(false), Math.max(0, left));
+    return () => clearTimeout(timer);
+  }, [post.created_at]);
   const reactionLockRef = useRef(false);
   const [deleted, setDeleted] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
@@ -35,6 +54,12 @@ export function PostCard({
   const stats = local.source === post || reactionPending ? local.stats : post;
   if (deleted || unavailable) return null;
   const mine = viewer?.id === post.author_id;
+  function beginWrite() {
+    if (reactionLockRef.current || deletePending || optimistic) return false;
+    reactionLockRef.current = true;
+    setReactionPending(true);
+    return true;
+  }
   return (
     <>
       <article className="post-card card" aria-busy={optimistic || undefined}>
@@ -49,6 +74,14 @@ export function PostCard({
               <small>
                 @{post.profiles.username} <span>·</span>{" "}
                 <Timestamp value={post.created_at} />
+                {stats.updated_at && (
+                  <span
+                    className="edited-label"
+                    title={exactTime(stats.updated_at)}
+                  >
+                    সম্পাদিত
+                  </span>
+                )}
               </small>
             </span>
           </Link>
@@ -58,37 +91,66 @@ export function PostCard({
                 <MoreHorizontal size={20} />
               </summary>
               <div className="menu-panel">
+                {!optimistic && (!post.is_quote || stats.quote) && (
+                  <Link
+                    className="quote-menu"
+                    href={`/compose?quote=${post.quoted_post_id ?? post.id}`}
+                    aria-label="আবার শেয়ার করি"
+                    prefetch={false}
+                  >
+                    <Repeat2 size={16} aria-hidden="true" /> আবার শেয়ার করি
+                  </Link>
+                )}
                 {mine ? (
-                  <Mutation
-                    action="delete_post"
-                    values={{ id: post.id }}
-                    label="পোস্ট মুছে দিই"
-                    confirm="এই পোস্ট আর তার সব উত্তর মুছে যাবে। নিশ্চিত?"
-                    disabled={optimistic || reactionPending || deletePending}
-                    interaction={{
-                      start() {
-                        setDeleteError({ ok: false, message: "" });
-                        setDeleted(true);
-                        setDeletePending(true);
-                        onDeleteState?.(true);
-                      },
-                      async settle(result) {
-                        if (!result.ok) {
-                          setDeleted(false);
-                          onDeleteState?.(false);
-                          setDeleteError(result);
+                  <>
+                    {editable && (
+                      <button
+                        type="button"
+                        className="button button-small button-quiet"
+                        disabled={
+                          optimistic || reactionPending || deletePending
                         }
-                        if (result.uncertain) {
-                          const fresh = await readSocial({ id: post.id });
-                          if (fresh.ok && !fresh.post) {
-                            setDeleted(true);
-                            onDeleteState?.(true);
+                        onClick={(event) => {
+                          setEditing(true);
+                          event.currentTarget
+                            .closest("details")
+                            ?.removeAttribute("open");
+                        }}
+                      >
+                        সম্পাদনা করি
+                      </button>
+                    )}
+                    <Mutation
+                      action="delete_post"
+                      values={{ id: post.id }}
+                      label="পোস্ট মুছে দিই"
+                      confirm="এই পোস্ট আর তার সব উত্তর মুছে যাবে। নিশ্চিত?"
+                      disabled={optimistic || reactionPending || deletePending}
+                      interaction={{
+                        start() {
+                          setDeleteError({ ok: false, message: "" });
+                          setDeleted(true);
+                          setDeletePending(true);
+                          onDeleteState?.(true);
+                        },
+                        async settle(result) {
+                          if (!result.ok) {
+                            setDeleted(false);
+                            onDeleteState?.(false);
+                            setDeleteError(result);
                           }
-                        }
-                        setDeletePending(false);
-                      },
-                    }}
-                  />
+                          if (result.uncertain) {
+                            const fresh = await readSocial({ id: post.id });
+                            if (fresh.ok && !fresh.post) {
+                              setDeleted(true);
+                              onDeleteState?.(true);
+                            }
+                          }
+                          setDeletePending(false);
+                        },
+                      }}
+                    />
+                  </>
                 ) : (
                   <>
                     <Link href={`/report?type=post&id=${post.id}`}>
@@ -112,9 +174,48 @@ export function PostCard({
           )}
         </div>
         {post.mood && <p className="post-mood">{post.mood}</p>}
-        <p className="post-body">
-          <RichText text={post.body} />
-        </p>
+        {editing ? (
+          <PostEditor
+            post={stats}
+            begin={beginWrite}
+            cancel={() => setEditing(false)}
+            end={(fresh) => {
+              if (fresh) setLocal({ source: post, stats: fresh });
+              if (fresh === null) {
+                setDeleted(true);
+                onDeleteState?.(true);
+              }
+              reactionLockRef.current = false;
+              setReactionPending(false);
+            }}
+          />
+        ) : (
+          stats.body && (
+            <p className="post-body">
+              <RichText text={stats.body} mentions={stats.mentions} />
+            </p>
+          )
+        )}
+        {post.is_quote && <QuoteCard quote={stats.quote} />}
+        {stats.poll && (
+          <PollCard
+            id={post.id}
+            poll={stats.poll}
+            viewer={viewer}
+            disabled={optimistic || deletePending || reactionPending}
+            begin={beginWrite}
+            end={(fresh) => {
+              if (fresh)
+                setLocal({ source: post, stats: { ...stats, ...fresh } });
+              if (fresh === null) {
+                setDeleted(true);
+                onDeleteState?.(true);
+              }
+              reactionLockRef.current = false;
+              setReactionPending(false);
+            }}
+          />
+        )}
         <div className="post-actions">
           <div className="reactions">
             {REACTIONS.map((r) => {
@@ -133,19 +234,17 @@ export function PostCard({
                   disabled={optimistic || reactionPending || deletePending}
                   interaction={{
                     start() {
-                      if (reactionLockRef.current) return false;
-                      reactionLockRef.current = true;
-                      setReactionPending(true);
+                      if (!beginWrite()) return false;
                       setLocal({
                         source: post,
-                        stats: { ...post, ...toggleReaction(stats, r.key) },
+                        stats: { ...stats, ...toggleReaction(stats, r.key) },
                       });
                     },
                     async settle(result) {
                       setLocal({
                         source: post,
                         stats: {
-                          ...post,
+                          ...stats,
                           ...(result.ok && result.stats ? result.stats : stats),
                         },
                       });

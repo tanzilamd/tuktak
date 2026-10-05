@@ -193,7 +193,17 @@ describe("real PostgreSQL migration, authorization and social operations", () =>
     const result = await db.query<{ relname: string; relrowsecurity: boolean }>(
       "select relname,relrowsecurity from pg_class join pg_namespace on pg_namespace.oid=relnamespace where nspname='public' and relkind='r'",
     );
-    expect(result.rows.length).toBe(15);
+    expect(result.rows.map((r) => r.relname)).toEqual(
+      expect.arrayContaining([
+        "posts",
+        "comments",
+        "polls",
+        "poll_options",
+        "poll_votes",
+        "mention_receipts",
+      ]),
+    );
+    expect(result.rows.length).toBe(19);
     expect(result.rows.every((r) => r.relrowsecurity)).toBe(true);
     await expect(
       rows(a, "insert into posts(author_id,body) values($1,'forged')", [b]),

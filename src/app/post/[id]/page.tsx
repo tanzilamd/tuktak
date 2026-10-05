@@ -17,20 +17,29 @@ export async function generateMetadata({
     ? publicMetadata(
         `/post/${p.id}`,
         `${p.profiles.display_name}-এর কথা`,
-        p.body,
+        p.body || undefined,
       )
     : { title: "পোস্ট পাওয়া যায়নি", robots: { index: false } };
 }
 export default async function Page({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ comment?: string }>;
 }) {
   const { id } = await params;
   if (!z.string().uuid().safeParse(id).success) notFound();
   const p = await getPost(id);
   if (!p) notFound();
-  const [v, replies] = await Promise.all([viewer(), comments(id)]);
+  const focus = z
+    .string()
+    .uuid()
+    .safeParse((await searchParams).comment);
+  const [v, replies] = await Promise.all([
+    viewer(),
+    comments(id, focus.success ? focus.data : undefined),
+  ]);
   return (
     <>
       <div className="page-top">

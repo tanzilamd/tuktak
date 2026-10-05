@@ -1,0 +1,2 @@
+# Preserve locally applied SQL bytes; its extra EOF newline is harmless.
+supabase/migrations/20261005000300_engagement.sql whitespace=-blank-at-eof
