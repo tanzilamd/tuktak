@@ -118,6 +118,8 @@ All primary screens, empty/loading/error states, adaptive profiles, in-app notif
 
 Use the guarded owner-console [first-admin.sql](scripts/production/first-admin.sql) following [HANDOFF.md](HANDOFF.md). The owner must create and verify their account first, then run the bootstrap from the Supabase SQL editor as the database owner. No email is hardcoded in application code. Other moderator roles are managed through `/admin`, with database authorization and audit entries.
 
+The Phase 2 development checkpoint groups moderation under `/moderation` with dedicated reports, suspended-account, audit and team subpages; Settings supplies authorized mobile access. `/admin` remains compatible and existing SQL role powers are unchanged. See [CONTROL_CENTER.md](CONTROL_CENTER.md) for completed checkpoints and the remaining release requirements. The new staff read RPC requires `20261006000100_staff_console.sql` before deploying this checkpoint; incomplete Phase 2 is not a production release.
+
 ## Deployment
 
 Vercel instructions are in [HANDOFF.md](HANDOFF.md). The app is portable: `npm run build && npm start` runs on a normal Node 24 host. A multi-stage `Dockerfile` emits a non-root standalone server. For Docker, pass public environment values as build arguments, then supply the same values at runtime. They must be present at build time because Next.js inlines `NEXT_PUBLIC_` values.

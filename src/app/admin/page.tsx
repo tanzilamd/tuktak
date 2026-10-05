@@ -18,7 +18,7 @@ export default async function Page({
         শুধু admin-ই moderator-এর দায়িত্ব দিতে বা তুলে নিতে পারে। সব পরিবর্তন
         audit-এ থাকে।
       </p>
-      <form className="search-form" action="/admin">
+      <form className="search-form">
         <label className="sr-only" htmlFor="admin-search">
           Username খুঁজি
         </label>
@@ -30,14 +30,22 @@ export default async function Page({
         />
         <button className="button button-small">খুঁজি</button>
       </form>
-      {users
-        .filter((p) => p.id !== v.id && p.role !== "admin")
-        .map((p) => (
-          <div className="safety-row" key={p.id}>
-            <span>
-              {p.display_name}
-              <small>@{p.username}</small>
-            </span>
+      <h2 className="sr-only">দলের অ্যাকাউন্ট</h2>
+      {users.map((p) => (
+        <div className="safety-row" key={p.id}>
+          <span>
+            {p.display_name}
+            <small>
+              @{p.username} ·{" "}
+              {p.role === "admin"
+                ? "অ্যাডমিন"
+                : p.role === "moderator"
+                  ? "মডারেটর"
+                  : "ব্যবহারকারী"}
+              {p.suspended ? " · স্থগিত" : ""}
+            </small>
+          </span>
+          {p.id !== v.id && p.role !== "admin" && (
             <Mutation action="role" values={{ id: p.id }} label="দায়িত্ব রাখি">
               <label className="sr-only" htmlFor={`role-${p.id}`}>
                 দায়িত্ব
@@ -47,8 +55,10 @@ export default async function Page({
                 <option value="moderator">Moderator</option>
               </select>
             </Mutation>
-          </div>
-        ))}
+          )}
+        </div>
+      ))}
+      {!users.length && <p className="muted">এই নামে কাউকে পাওয়া যায়নি।</p>}
     </section>
   );
 }

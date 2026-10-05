@@ -5,7 +5,7 @@ import { ThemePicker } from "@/components/theme";
 import { logout } from "@/app/actions";
 export const metadata = { title: "সেটিংস", robots: { index: false } };
 export default async function Page() {
-  await requireViewer(true, "/settings");
+  const v = await requireViewer(true, "/settings");
   const priv = await privateSettings();
   return (
     <>
@@ -48,6 +48,14 @@ export default async function Page() {
         <Link href="/privacy#support">গোপনীয়তা ও সহায়তা</Link>
         <Link href="/terms">ব্যবহারের শর্ত</Link>
       </p>
+      {!v.suspended && v.role !== "user" && (
+        <section className="card content-card">
+          <h2>আড্ডার দায়িত্ব</h2>
+          <Link className="settings-link" href="/moderation">
+            আড্ডা সামলাই →
+          </Link>
+        </section>
+      )}
       <section className="card content-card">
         <h2>বিদায়, আপাতত?</h2>
         <form action={logout}>

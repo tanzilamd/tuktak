@@ -226,12 +226,15 @@ test("moderation dashboard, audit, admin role management and suspension", async 
     await expect(
       page.getByRole("heading", { name: "আড্ডা সামলাই" }),
     ).toBeVisible();
+    await page.getByRole("link", { name: "অপেক্ষায় রিপোর্ট" }).click();
     const report = page
       .locator("article")
       .filter({ hasText: "স্প্যাম" })
       .first();
     await report.getByRole("button", { name: "বন্ধ করি" }).click();
-    await expect(page.getByText("dismiss · user")).toBeVisible();
+    await expect(report).not.toBeVisible();
+    await page.goto("/moderation/audit");
+    await expect(page.getByText("বন্ধ করা · user")).toBeVisible();
     await page.goto("/admin?q=ayon");
     await page.getByRole("combobox").selectOption("moderator");
     await page.getByRole("button", { name: "দায়িত্ব রাখি" }).click();
