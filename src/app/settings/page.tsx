@@ -5,7 +5,7 @@ import { ThemePicker } from "@/components/theme";
 import { logout } from "@/app/actions";
 export const metadata = { title: "সেটিংস", robots: { index: false } };
 export default async function Page() {
-  await requireViewer(true);
+  await requireViewer(true, "/settings");
   const priv = await privateSettings();
   return (
     <>

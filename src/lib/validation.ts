@@ -28,11 +28,20 @@ export const usernameSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .regex(
-    /^[a-z0-9_]{3,20}$/,
-    "Username: 3–20 Latin letters, numbers or underscore.",
+  .min(3, "ইউজারনেমে অন্তত ৩টি অক্ষর দাও। যেমন: student_01")
+  .max(20, "ইউজারনেম সর্বোচ্চ ২০ অক্ষরের হতে পারে।")
+  .refine(
+    (v) => !/\s/.test(v),
+    "ইউজারনেমে স্পেস দেওয়া যাবে না। যেমন: student_01",
   )
-  .refine((v) => !RESERVED.includes(v), "এই username-টা সংরক্ষিত।");
+  .regex(
+    /^[a-z0-9_]+$/,
+    "শুধু ইংরেজি অক্ষর, সংখ্যা ও _ ব্যবহার করো। যেমন: campus_friend",
+  )
+  .refine(
+    (v) => !RESERVED.includes(v),
+    "এই Username-টা সংরক্ষিত। অন্য একটা দাও।",
+  );
 export const phoneSchema = z
   .string()
   .transform((v) =>
