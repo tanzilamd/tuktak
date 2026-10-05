@@ -29,11 +29,17 @@ export function FeedbackForm({
   onErrors?: (errors: Record<string, string>) => void;
 } & Omit<React.ComponentProps<"form">, "onSubmit" | "onInvalid">) {
   const ref = useRef<HTMLFormElement>(null);
+  const focusErrorsRef = useRef(true);
+  const previousServerStateRef = useRef(serverState);
   const [local, setLocal] = useState<ActionState | null>(null);
   const state = local ?? serverState;
   useEffect(() => {
+    const moveFocus =
+      focusErrorsRef.current || previousServerStateRef.current !== serverState;
+    previousServerStateRef.current = serverState;
+    focusErrorsRef.current = false;
     const name = Object.keys(state.fieldErrors ?? {})[0];
-    if (name) onErrors?.(state.fieldErrors ?? {});
+    if (name && moveFocus) onErrors?.(state.fieldErrors ?? {});
     // Onboarding can first reveal the step containing this field.
     const frame = requestAnimationFrame(() => {
       const fields = ref.current?.querySelectorAll<HTMLElement>(
@@ -51,12 +57,12 @@ export function FeedbackForm({
               el.getAttribute("name") || el.dataset.field || ""
             ],
         ) ?? ref.current?.querySelector<HTMLElement>(".form-message");
-      if (state.ok || !state.message) return;
+      if (!moveFocus || state.ok || !state.message) return;
       target?.focus();
       target?.scrollIntoView({ block: "center", behavior: "instant" });
     });
     return () => cancelAnimationFrame(frame);
-  }, [state, onErrors]);
+  }, [state, onErrors, serverState]);
   return (
     <ErrorsContext value={state.fieldErrors ?? {}}>
       <form
@@ -85,6 +91,7 @@ export function FeedbackForm({
               .filter((key) => errors[key])
               .map((key) => [key, errors[key]]),
           );
+          focusErrorsRef.current = false;
           setLocal({
             ...state,
             fieldErrors,
@@ -95,6 +102,7 @@ export function FeedbackForm({
           const parsed = schema.safeParse(
             input(new FormData(event.currentTarget)),
           );
+          focusErrorsRef.current = !parsed.success;
           if (!parsed.success) {
             event.preventDefault();
             setLocal(validationFailure(parsed.error));

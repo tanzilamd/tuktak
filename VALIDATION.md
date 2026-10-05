@@ -531,3 +531,13 @@ One temporary local-only counter measures exactly **one `popular_topics` RPC** p
 - `tests/e2e/ui-polish.spec.ts`
 - `tests/identity-ui.test.ts`
 - `tests/validation.test.ts`
+
+### Corrected typing-focus release
+
+The initial application revision was `b7e1f0ac7cc0caea39bd565a25d4a80bb6f4cd60`. Its production QA passed 131 checks across the affected layout, menus, guest gating, actual admin/normal profiles, owned post/edit/reply/quote/poll/reaction flows and a real profile-name change with unchanged Auth metadata. Four owned posts and their child rows were independently verified removed; all saved public/private hashes, roles, Auth metadata, follows and notifications were preserved. One legitimate profile update timestamp and abuse receipts remain. The inbox was deliberately not opened.
+
+A subsequent keyboard-only correction check uncovered a new regression: clearing one username error while other submitted fields still failed moved focus to another field during typing. The first automated suite had not covered that case. Production was reverted to `e140ef1569f7caecb24f38003f1224ec12b9380f`, whose tree is byte-identical to the previously stable `68aee7a35fe91e2b3a9edd9db00f3d2347fc50cd`; no schema/data rollback was performed. [Rollback CI 37335822948](https://github.com/tanzilamd/tuktak/actions/runs/37335822948) and Vercel Production deployment `6863514756` succeeded, and canonical health returned 200.
+
+The smallest correction separates error-message updates from focus movement in the existing FeedbackForm. Typing updates already-shown errors in place; only a new invalid submission or new server response moves focus/reveals an onboarding error step. A regression types the complete neutral username while other errors remain and verifies its value, continued focus and inline error clearance. That test fails before the fix and passes afterward.
+
+The corrected production build passes lint/typecheck/build, **217/217 Vitest** and the full **72/72 Playwright** suite, including all eight new follow-up cases and all preserved startup/social/accessibility regressions. The focused three-case signup/focus/mobile run also passes. The app is restored using forward Git commits only after this acceptance; the published tree must match the locally validated corrected tree. No additional runtime or policy change is involved. Final hosted deployment/CI and read-only live focus checks are verified separately when publication completes.

@@ -368,3 +368,21 @@ test("guest desktop zoom layouts retain Settings and legal footer without inner 
       });
     }
 });
+test("correcting a shown field keeps typing focus even when other submitted fields still have errors", async ({
+  page,
+}) => {
+  await page.goto("/signup");
+  await page.getByLabel("তোমাকে কী নামে ডাকব?").fill("বন্ধু");
+  const username = page.getByLabel("Username", { exact: true });
+  await username.fill("student friend");
+  await page
+    .getByRole("button", { name: "আড্ডায় যোগ দিই", exact: true })
+    .click();
+  await expect(username).toBeFocused();
+  await username.fill("");
+  await username.pressSequentially("campus_friend");
+  await expect(username).toBeFocused();
+  await expect(username).toHaveValue("campus_friend");
+  await expect(page.locator("#error-username")).toHaveCount(0);
+  await expect(page.locator("#error-email")).toBeVisible();
+});
