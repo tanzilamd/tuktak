@@ -178,6 +178,10 @@ The worker checks for updates on registration and at most once an hour on foregr
 
 Vercel functions are pinned to Mumbai (`bom1`) beside the existing Supabase `ap-south-1` project. Discovery and the right rail share a request-scoped topics read. No social/private caching, dependency, SQL or UI redesign was introduced. See [PERFORMANCE.md](PERFORMANCE.md) for the measured before/after results, device simulation limits and free monitoring checklist.
 
+## Public sharing
+
+Public posts and profiles offer compact Share controls, including for guests. Native Web Share receives only `টুকটাকে দেখো` and the canonical post/profile URL; unsupported/denied sharing falls back to URL copy, then a selectable link when clipboard access is unavailable. Cancellation is silent. There are no share writes, counts or tracking. Post UUID links survive display-name/username changes. Profile links use the current username; editing it does not reserve/redirect the old username, which may later belong to another account. This release preserves that existing routing model rather than introducing aliases.
+
 ## Controlled engagement batch
 
 Apply `20261005000300_engagement.sql` then `20261005000400_mention_boundaries.sql` before releasing this app version. It adds nullable parent/edit/reference fields and four RLS-enabled tables; old normal-post/comment/reaction/read payloads remain valid. No dependency or PWA architecture changes are required.

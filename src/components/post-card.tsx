@@ -19,6 +19,7 @@ import { exactTime } from "@/lib/time";
 import { QuoteCard } from "./quote-preview";
 import { PollCard } from "./poll-card";
 import { PostEditor } from "./post-editor";
+import { ShareButton, ShareFeedback, type ShareFeedbackState } from "./share";
 import type { Post, Viewer, Profile } from "@/lib/types";
 export function PostCard({
   post,
@@ -52,6 +53,7 @@ export function PostCard({
   const [deleted, setDeleted] = useState(false);
   const [deletePending, setDeletePending] = useState(false);
   const [deleteError, setDeleteError] = useState({ ok: false, message: "" });
+  const [shareFeedback, setShareFeedback] = useState<ShareFeedbackState>(null);
   const stats = local.source === post || reactionPending ? local.stats : post;
   if (deleted || unavailable) return null;
   const mine = viewer?.id === post.author_id;
@@ -94,6 +96,12 @@ export function PostCard({
               <MoreHorizontal size={20} />
             </summary>
             <div className="menu-panel">
+              {!optimistic && (
+                <ShareButton
+                  target={{ kind: "post", id: post.id }}
+                  onFeedback={setShareFeedback}
+                />
+              )}
               {!optimistic && (!post.is_quote || stats.quote) && (
                 <Link
                   className="quote-menu"
@@ -326,6 +334,7 @@ export function PostCard({
           )}
         </div>
       </article>
+      <ShareFeedback state={shareFeedback} />
       <Result state={deleteError} />
     </>
   );

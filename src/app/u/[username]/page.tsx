@@ -12,6 +12,7 @@ import {
   followCounts,
 } from "@/lib/data";
 import { Avatar } from "@/components/avatar";
+import { ProfileShare } from "@/components/share";
 import { Mutation } from "@/components/forms";
 import { PostCard } from "@/components/post-card";
 import { Empty } from "@/components/empty";
@@ -85,6 +86,7 @@ export default async function Page({
             <AdminBadge admin={p.is_admin} />
           </h1>
           <p className="username">@{p.username}</p>
+          <ProfileShare username={p.username} />
           {p.bio && <p className="profile-bio">{p.bio}</p>}
           <div className="profile-facts">
             {p.education && <span>🌱 {p.education}</span>}

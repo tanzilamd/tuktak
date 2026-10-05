@@ -42,6 +42,8 @@ Provider logs may contain operational identity/IP metadata. The application does
 
 ## Input, rendering and web controls
 
+Public sharing sends only a fixed Bengali text and an existing canonical UUID-post/current-username profile URL to the browser's native share API. Copy/manual fallback exposes only that URL. Sharing needs no session or database write and never forwards content, private fields, current query strings or tracking parameters. Shared URLs use the same RLS-filtered public readers; sharing does not bypass hidden/deleted/block/suspension rules. Current username URLs are not permanent account identifiers and are not retained as aliases after renaming.
+
 Zod validates every application action boundary. Database constraints independently enforce usernames (lowercase/unique/safe/reserved), nonempty post/comment bodies (empty commentary is allowed only on a quote), 240/180 Unicode codepoints, bio length, allowed hobbies/moods/reactions, unique relationships, no self-follow and one reaction per user/post.
 
 SQL uses static commands with typed JSON/UUID arguments. React escapes text; `RichText` builds links as React nodes and only permits HTTP/HTTPS URLs. External links use `noopener noreferrer nofollow ugc`. Hashtags are parsed as Unicode text, encoded in URLs and revalidated on hashtag pages. No `dangerouslySetInnerHTML`, remote metadata fetching or arbitrary user CSS is used.
