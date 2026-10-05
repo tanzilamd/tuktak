@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId } from "react";
 import type { Post } from "@/lib/types";
 import { bn, charCount } from "@/lib/config";
 import { mentionNames } from "@/lib/engagement";
 import { readSocial } from "@/lib/social";
 import { useInteraction } from "./interaction";
 import { Result } from "./forms";
+import { useBodyInput } from "./use-body-input";
 export function PostEditor({
   post,
   begin,
@@ -17,8 +18,7 @@ export function PostEditor({
   end: (post?: Post | null) => void;
   cancel: () => void;
 }) {
-  const [body, setBody] = useState(post.body);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { body, inputRef, inputProps } = useBodyInput(post.body);
   const id = useId();
   const interaction = useInteraction({
     start: begin,
@@ -34,7 +34,7 @@ export function PostEditor({
   });
   useEffect(() => {
     inputRef.current?.focus({ preventScroll: true });
-  }, []);
+  }, [inputRef]);
   return (
     <form
       className="post-editor"
@@ -49,13 +49,12 @@ export function PostEditor({
       <input type="hidden" name="id" value={post.id} />
       <label htmlFor={id}>কথাটা সম্পাদনা করি</label>
       <textarea
-        ref={inputRef}
+        {...inputProps}
         id={id}
         name="body"
         rows={3}
         value={body}
         readOnly={interaction.pending}
-        onChange={(e) => setBody(e.target.value)}
         aria-describedby={`${id}-count`}
       />
       <div className="editor-actions">

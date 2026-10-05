@@ -41,6 +41,7 @@ import {
   validPollOptions,
 } from "@/lib/engagement";
 import { QuoteCard } from "./quote-preview";
+import { useBodyInput } from "./use-body-input";
 const initial: ActionState = { ok: false, message: "" };
 export function Result({ state }: { state: ActionState }) {
   return state.message ? (
@@ -189,17 +190,16 @@ export function Composer({
   placeholder?: string;
 }) {
   const fieldId = useId();
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const { body, setBody, inputRef, inputProps } = useBodyInput(prompt);
   useEffect(() => {
     if (parentId) inputRef.current?.focus();
-  }, [parentId]);
+  }, [parentId, inputRef]);
   const [pollEnabled, setPollEnabled] = useState(false);
   const [options, setOptions] = useState([
     { key: "first", text: "" },
     { key: "second", text: "" },
   ]);
   const [duration, setDuration] = useState("86400");
-  const [body, setBody] = useState(prompt);
   const [mood, setMood] = useState("");
   const [serverState, submit, serverPending] = useActionState(
     async (prev: ActionState, data: FormData) => {
@@ -277,12 +277,11 @@ export function Composer({
         <span>{replyTo ? "💬" : "✦"}</span>
       </label>
       <textarea
-        ref={inputRef}
+        {...inputProps}
         id={fieldId}
         name="body"
         readOnly={pending}
         value={body}
-        onChange={(e) => setBody(e.target.value)}
         placeholder={replyTo ? "প্রথম কথাটা তুমি বলবে?" : placeholder}
         rows={replyTo ? 2 : 3}
         required={!quote}
