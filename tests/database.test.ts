@@ -203,7 +203,7 @@ describe("real PostgreSQL migration, authorization and social operations", () =>
         "mention_receipts",
       ]),
     );
-    expect(result.rows.length).toBe(19);
+    expect(result.rows.length).toBe(25);
     expect(result.rows.every((r) => r.relrowsecurity)).toBe(true);
     await expect(
       rows(a, "insert into posts(author_id,body) values($1,'forged')", [b]),

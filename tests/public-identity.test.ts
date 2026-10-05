@@ -11,7 +11,10 @@ const ids = [
 beforeAll(async () => {
   db = await createAuthDatabase();
   const chain = readMigrations();
-  await db.exec(migrationSQL(chain.slice(0, -1)));
+  const identityIndex = chain.findIndex(
+    (m) => m.name === "20261005000500_public_admin_identity.sql",
+  );
+  await db.exec(migrationSQL(chain.slice(0, identityIndex)));
   for (const [i, id] of ids.entries())
     await db.query("insert into auth.users values($1,$2,now(),$3::jsonb)", [
       id,

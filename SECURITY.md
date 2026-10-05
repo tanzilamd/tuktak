@@ -14,7 +14,7 @@ Password updates require an authenticated recovery/session user, then request gl
 
 ## Authorization and RLS
 
-All 19 application tables enable RLS. Direct table insert/update/delete grants are revoked from `anon` and `authenticated`, including for the table owner's public profile. The sole mutation RPC is `public.command(action,payload)`:
+All application tables enable RLS: 19 in the published Phase 1 schema and 25 in the Phase 2 chain. Direct table insert/update/delete grants are revoked from `anon` and `authenticated`, including for the table owner's public profile. The sole mutation RPC is `public.command(action,payload)`:
 
 - Caller identity comes from `auth.uid()`, never an author/role field in form data.
 - Verified email and current suspension status are checked in PostgreSQL.
@@ -110,3 +110,11 @@ Mounted inbox entry calls an atomic bounded snapshot/read command. Read updates 
 `20261005000500_public_admin_identity.sql` adds only read projections, without new stored role/profile flags or tables. `post_stats` joins the author’s role primary key in its existing bounded query; the existing internal public actor projection joins its profile lookup to that same key. Comments, replies, quotes and inbox entries therefore require no additional HTTP reads. These projections return only `is_admin`/`author_is_admin`, never the private role enum, suspension record, Auth metadata or account data.
 
 `public_admin_ids(ids)` accepts at most the first 200 requested IDs and returns only visible current admins among them. Profile/discovery/follow readers call it once per bounded result, not per displayed user. It has a fixed search path, read-only execution grants, and current `visible_user` checks. Block/suspension visibility remains authoritative; anonymous readers can still see inherently public profiles. Private `user_roles` RLS and all direct-write restrictions remain unchanged. Demotion removes the public badge on the next authoritative read; no global authenticated cache or polling is introduced. `profiles.display_name` remains the sole current public-name source.
+
+## Dynamic community content boundary (Phase 2 checkpoint)
+
+The six `community_*` tables enable RLS and revoke all application-role table grants, including reads. Public callers receive only active/current community text, bounded curated moods/topics and one scheduled announcement from `community_public()`. Admin reads go through the separately checked `community_list` RPC. Internal time-travel/selection/mutation/trigger helpers and the renamed legacy command have no application execute grant. No private account/Auth/role row, staff identity or voter is projected.
+
+Management remains inside `command(action,payload)`, exclusively for a live verified unsuspended admin. The management helper takes caller/content transaction locks, rechecks and locks role/verification after waits, derives audit actor from `auth.uid()` and uses rate receipts. Moderator/normal/forged-metadata callers cannot manage content. Existing moderation/role powers and exact legacy command body remain unchanged. Old clients retain ordinary social operations against the upgraded schema; intentionally disabled moods reject new publication but historical mood snapshots are not rewritten or invalidated on body edits.
+
+Public community results remain caller-sensitive because organic/featured counts enforce existing post visibility/block/mute/suspension. Never globally cache them. There is no service role, public direct write, background polling, private caching or PWA/session change. See CONTROL_CENTER.md for limits and staged implementation status; incomplete Phase 2 is not a production release.

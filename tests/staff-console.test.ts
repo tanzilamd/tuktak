@@ -55,7 +55,7 @@ beforeAll(async () => {
       "select pg_get_functiondef('command(text,jsonb)'::regprocedure) definition",
     )
   ).rows[0].definition;
-  await db.exec(migrationSQL(chain));
+  await db.exec(migrationSQL(chain.slice(0, index + 1)));
 });
 afterAll(async () => db.close());
 async function as<T>(actor: string | null, run: () => Promise<T>) {
