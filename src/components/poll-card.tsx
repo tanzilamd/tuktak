@@ -1,8 +1,9 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Poll, PostStats, Viewer } from "@/lib/types";
-import { bn } from "@/lib/config";
+import { bn, loginHref } from "@/lib/config";
 import { pollRemaining, voteOptimistically } from "@/lib/engagement";
 import { readSocial } from "@/lib/social";
 import { useInteraction } from "./interaction";
@@ -23,6 +24,7 @@ export function PollCard({
   begin: () => boolean;
   end: (stats?: PostStats | null) => void;
 }) {
+  const router = useRouter();
   const [local, setLocal] = useState({ source: poll, poll });
   const value = local.source === poll ? local.poll : poll;
   const [now, setNow] = useState(() => Date.now());
@@ -95,15 +97,15 @@ export function PollCard({
               type="button"
               className={`poll-option ${selected ? "selected" : ""}`}
               disabled={
-                !viewer ||
-                viewer.suspended ||
-                closed ||
-                disabled ||
-                interaction.pending
+                viewer?.suspended || closed || disabled || interaction.pending
               }
               aria-pressed={selected}
               aria-label={`${option.body}, ${bn(percent)} শতাংশ, ${bn(option.votes)} ভোট${selected ? ", তোমার ভোট" : ""}`}
               onClick={() => {
+                if (!viewer) {
+                  router.push(loginHref(`/post/${id}`));
+                  return;
+                }
                 const form = new FormData();
                 form.set("action", "vote_poll");
                 form.set("id", id);
@@ -134,7 +136,7 @@ export function PollCard({
           : `${bn(remaining.value)} ${remaining.unit} বাকি`}
       </p>
       {!viewer && !closed && (
-        <Link href="/login" className="small">
+        <Link href={loginHref(`/post/${id}`)} className="small">
           ভোট দিতে লগইন করো
         </Link>
       )}

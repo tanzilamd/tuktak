@@ -2,6 +2,7 @@ import { AdminBadge } from "@/components/admin-badge";
 import { publicMetadata } from "@/lib/metadata";
 import { charCount } from "@/lib/config";
 import Link from "next/link";
+import { loginHref } from "@/lib/config";
 import { notFound } from "next/navigation";
 import {
   getProfile,
@@ -71,7 +72,10 @@ export default async function Page({
                 pressed={following}
               />
             ) : (
-              <Link className="button button-small" href="/login">
+              <Link
+                className="button button-small"
+                href={loginHref(`/u/${p.username}`)}
+              >
                 সাথে থাকি +
               </Link>
             )}

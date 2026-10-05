@@ -1,11 +1,30 @@
 import Link from "next/link";
 import { Sparkles, ArrowUpRight, Leaf } from "lucide-react";
 import { topics } from "@/lib/data";
+import { Avatar } from "./avatar";
+import { AdminBadge } from "./admin-badge";
+import type { Viewer } from "@/lib/types";
 import { bn } from "@/lib/config";
-export async function RightRail() {
+export async function RightRail({ viewer }: { viewer: Viewer | null }) {
   const tags = await topics();
   return (
-    <aside className="right-rail">
+    <aside className="right-rail" aria-label="আড্ডার পাশে">
+      {viewer && (
+        <Link
+          className="mini-profile rail-profile"
+          href={`/u/${viewer.profile.username}`}
+        >
+          <Avatar profile={viewer.profile} />
+          <span>
+            <b>
+              {viewer.profile.display_name}
+              <AdminBadge admin={viewer.profile.is_admin} />
+            </b>
+            <small>@{viewer.profile.username}</small>
+          </span>
+          <ArrowUpRight size={17} aria-hidden="true" />
+        </Link>
+      )}
       <div className="rail-card">
         <div className="rail-heading">
           <h3>

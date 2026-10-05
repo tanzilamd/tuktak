@@ -8,8 +8,11 @@ export default async function Page({
 }: {
   searchParams: Promise<{ prompt?: string; quote?: string }>;
 }) {
-  await requireViewer();
   const p = await searchParams;
+  await requireViewer(
+    false,
+    p.quote ? `/compose?quote=${encodeURIComponent(p.quote)}` : "/compose",
+  );
   const parsed = z.string().uuid().safeParse(p.quote);
   const source = p.quote
     ? parsed.success
