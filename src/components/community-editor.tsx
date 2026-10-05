@@ -73,6 +73,7 @@ export function CommunityEditor({
 }) {
   const [state, submit, pending] = useActionState(mutate, initial);
   const lockRef = useRef(false);
+  const resetRef = useRef(false);
   const formRef = useRef<HTMLDivElement>(null);
   const [body, setBody] = useState(entry?.body ?? "");
   const [title, setTitle] = useState(entry?.title ?? "");
@@ -82,7 +83,11 @@ export function CommunityEditor({
     if (!pending) lockRef.current = false;
   }, [pending, state]);
   useEffect(() => {
-    if (state.ok && !entry) formRef.current?.querySelector("form")?.reset();
+    if (state.ok && !entry) {
+      resetRef.current = true;
+      formRef.current?.querySelector("form")?.reset();
+      resetRef.current = false;
+    }
   }, [state, entry]);
   const limit = kind === "questions" ? 160 : kind === "prompts" ? 120 : 240;
   const field = (
@@ -102,7 +107,13 @@ export function CommunityEditor({
         input={communityInput}
         fieldMessages={COMMUNITY_FIELD_MESSAGES}
         className="community-editor"
-        onReset={() => {
+        onReset={(event) => {
+          // React resets resolved Actions even when they return a validation/rate failure.
+          // Preserve edit/draft values; only our confirmed new-entry reset is allowed.
+          if (!resetRef.current) {
+            event.preventDefault();
+            return;
+          }
           setBody("");
           setTitle("");
           setPriority(1);
@@ -193,7 +204,7 @@ export function CommunityEditor({
               "ধরন",
               <select
                 name="priority"
-                defaultValue={priority}
+                defaultValue={entry?.priority ?? 1}
                 onChange={(e) => setPriority(Number(e.target.value))}
               >
                 <option value="1">সাধারণ</option>
@@ -236,7 +247,7 @@ export function CommunityEditor({
               <input
                 type="checkbox"
                 name="dismissible"
-                defaultChecked={dismissible}
+                defaultChecked={entry?.dismissible ?? true}
                 onChange={(e) => setDismissible(e.target.checked)}
               />
               দেখার পরে সরিয়ে রাখা যাবে

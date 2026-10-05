@@ -71,6 +71,17 @@ test("question validation, editing, daily pin/release and audit use live admin a
   await form
     .getByRole("textbox", { name: /^প্রশ্ন/ })
     .fill(`${marker} — আজ কী কথা?`);
+  sql(
+    `insert into action_receipts(user_id,action) select '${admin}','community_manage' from generate_series(1,100)`,
+  );
+  await form.getByRole("button", { name: "যোগ করি" }).click();
+  await expect(form.getByRole("alert")).toContainText("১০ মিনিট");
+  await expect(form.getByRole("textbox", { name: /^প্রশ্ন/ })).toHaveValue(
+    `${marker} — আজ কী কথা?`,
+  );
+  sql(
+    `delete from action_receipts where user_id='${admin}' and action='community_manage'`,
+  );
   await save(page);
   const row = page
     .locator(".community-row")
@@ -245,6 +256,9 @@ test("announcement scheduling, priority, public dismissal/revision and no-gap/ex
     .locator(".community-editor input[name=starts_at]")
     .fill(dhakaInput(new Date(Date.now() - 60000).toISOString()));
   await save(page);
+  await expect(page.locator(".announcement-preview p")).toHaveText(
+    `${marker} — ঘোষণা`,
+  );
   await page.goto("/");
   const banner = page.locator(".community-announcement");
   await expect(banner).toHaveCount(1);
@@ -343,6 +357,7 @@ test("all content editors and compact banner preserve responsive layout and acce
         if (width === 320 || width === 1280)
           await page.screenshot({
             path: `test-results/community-${kind}-${width}-${theme}.png`,
+            fullPage: true,
           });
       }
       await page.goto("/");
