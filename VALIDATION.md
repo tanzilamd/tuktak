@@ -414,6 +414,7 @@ Remaining manual checks: physical Android Chrome/installed PWA (including Androi
 - Shared field grids were stretching controls in rows with unequal helper/error content. Aligning fields at the start and using shrink-safe grid tracks makes labels/controls line up. Post-edit and poll-option controls now reuse the existing input tokens instead of browser defaults; edit content fills its card content width, with the counter left and save/cancel right. Poll duration label/select alignment is local. Form behavior, validation, stored values and copy are unchanged.
 - Shared focus outlines are 2px in the existing focus color; bordered fields use a close offset. Borderless composer textareas use a visible 2px inset focus underline with no layout shift. No focus indication was removed. Long unbroken display names could expand a 320px post to 628px; names now wrap within post/profile identity areas, including beside the badge.
 - One late safety-flow run stalled on profile → report navigation while only partial prefetch responses completed. Four isolated repetitions passed before changes, so the intermittent underlying framework cause is not claimed as proven. Report links on profiles/posts/comments now disable unnecessary background prefetch and retain normal client navigation. A dedicated regression verifies no report prefetch and correct form/target navigation; the full suite is rerun afterward.
+- Live axe found that multiple existing polls used the same named region/landmark. A minimal semantic correction makes each poll a labelled group, without any visual or vote behavior change; a multiple-voted-poll regression covers both themes at four widths. Contrast is checked after CSS theme transitions settle, avoiding transient intermediate-color false positives. The first live helper used the database quote column instead of the command’s `quote_id`; that QA helper was corrected, and each interrupted run’s owned fixtures/baseline was independently verified clean.
 - A reusable, noninteractive `অ্যাডমিন` text badge appears on post/detail author names, comments/replies, public profiles, quote previews, inbox actor names and person cards. It derives only from the live private admin role. Normal/moderator accounts do not get it; fresh authoritative reads remove it after demotion. It is not identity verification.
 
 ### Schema, privacy and query review
@@ -428,10 +429,41 @@ A temporary local-only fetch counter measured exactly one `popular_topics` RPC f
 
 - Changed supported files pass Prettier; lint, typecheck, production build and `git diff --check` pass.
 - Vitest: **214/214**, 15 files; database subset **83/83**, five files, including fresh/upgrade preservation, admin/normal/moderator/demotion/suspension/block visibility, helper revocation, current-name projections and unchanged Auth metadata.
-- Full real-local-stack Playwright suite: **63/63** on the production build. It covers auth/signup/confirmation/recovery/onboarding, settings, posts/edits/replies/mentions/quotes/polls/expiry, optimistic failures/lost responses, reactions/follows/safety/moderation, inbox snapshot/badges, feed tabs/history, PWA/offline and the pending startup regressions. The final wrapping refinement is included in the release acceptance run. The five UI tests passed again after tightening identity screenshots to wait for the actual streamed element instead of capturing a skeleton.
+- Full real-local-stack Playwright suite: **64/64** on the production build. It covers auth/signup/confirmation/recovery/onboarding, settings, posts/edits/replies/mentions/quotes/polls/expiry, optimistic failures/lost responses, reactions/follows/safety/moderation, inbox snapshot/badges, feed tabs/history, PWA/offline and the pending startup regressions. The final wrapping refinement is included in the release acceptance run. Identity screenshots wait for the actual streamed element instead of capturing a skeleton. After the live multiple-poll finding, the semantic fix passed a rebuilt full 64-test run, including six focused UI regressions.
 - Both full and production dependency audits report zero vulnerabilities at the existing moderate threshold.
 - Visual/geometry and axe checks cover 320×568, 360×800, 390×844, 768×1024, 1280×720, 1366×768, 1440×900 and 1920×1080 in light/dark. Profile/editor controls also cover 320/360/390/768/1280. Desktop 125%-equivalent reflow is tested by reducing available CSS pixels; this is not a claim of using a physical laptop's browser zoom UI. Footer, compose action and scrollable navigation stay separate/reachable. Changed-surface axe reports no violations; keyboard focus does not shift geometry. Screenshots/geometry are reviewed against the production reference; palette, typography, cards and navigation identity remain intact.
 
+### Changed files
+
+- `AGENTS.md`
+- `HANDOFF.md`
+- `PERFORMANCE.md`
+- `README.md`
+- `SECURITY.md`
+- `VALIDATION.md`
+- `package.json`
+- `src/app/globals.css`
+- `src/app/page.tsx`
+- `src/app/u/[username]/page.tsx`
+- `src/components/admin-badge.tsx`
+- `src/components/discussion.tsx`
+- `src/components/home-feed.tsx`
+- `src/components/mobile-topics.tsx`
+- `src/components/navigation.tsx`
+- `src/components/notification-list.tsx`
+- `src/components/post-card.tsx`
+- `src/components/poll-card.tsx`
+- `src/components/quote-preview.tsx`
+- `src/lib/data.ts`
+- `src/lib/notifications.ts`
+- `src/lib/types.ts`
+- `supabase/migrations/20261005000500_public_admin_identity.sql`
+- `tests/data.test.ts`
+- `tests/e2e/pwa.spec.ts`
+- `tests/e2e/ui-polish.spec.ts`
+- `tests/identity-ui.test.ts`
+- `tests/public-identity.test.ts`
+
 ### Release evidence and remaining checks
 
-The additive production schema is applied and verified. Application publication, CI/Vercel status and final owned-account/live cleanup evidence will be recorded after deployment verification. Physical Android/iPhone/iPad, native installed launch on mobile data, actual 125% laptop browser zoom UI and assistive-technology review remain manual checks; desktop automation does not claim physical-device certification.
+The additive production schema is applied and verified. App commit `69c3bc65b66e1085b35cbee3b7f8b21955decfdc` was pushed to main; GitHub CI run `37320992184` and Vercel Production deployment `6860967651` succeeded. The small follow-up poll semantic correction is being published after its full acceptance pass; final live/cleanup evidence will be recorded after that deployment verification. Physical Android/iPhone/iPad, native installed launch on mobile data, actual 125% laptop browser zoom UI and assistive-technology review remain manual checks; desktop automation does not claim physical-device certification.

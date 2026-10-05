@@ -4,13 +4,13 @@ The application is deployed and the local development workflow is implemented. T
 
 ## Current production
 
-| Setting                          | Intended value                                                                                                             |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Repository / production branch   | `tanzilamd/tuktak` / `main`                                                                                                |
-| Production URL                   | `https://tuktakbd.vercel.app`                                                                                              |
-| Supabase project reference / URL | `guqzypztckfnapmptjpu` / `https://guqzypztckfnapmptjpu.supabase.co`                                                        |
-| Deployment source                | Connected GitHub → Vercel project; pushes to `main` trigger production builds                                              |
-| Migration history                | `202610040001`, `20261004000200`, `20261004000300`, `20261005000100`, `20261005000200`, `20261005000300`, `20261005000400` |
+| Setting                          | Intended value                                                                                                                               |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repository / production branch   | `tanzilamd/tuktak` / `main`                                                                                                                  |
+| Production URL                   | `https://tuktakbd.vercel.app`                                                                                                                |
+| Supabase project reference / URL | `guqzypztckfnapmptjpu` / `https://guqzypztckfnapmptjpu.supabase.co`                                                                          |
+| Deployment source                | Connected GitHub → Vercel project; pushes to `main` trigger production builds                                                                |
+| Migration history                | `202610040001`, `20261004000200`, `20261004000300`, `20261005000100`, `20261005000200`, `20261005000300`, `20261005000400`, `20261005000500` |
 
 All eight migrations were applied and their stored sources/catalog checked against Git. The schema-first engagement release and owned-fixture verification are recorded in VALIDATION.md. Production signup/confirmation/onboarding, private-phone protection, dedicated admin/moderation and social-interaction flows have received verification. Auth email delivery was owner-confirmed; SMTP credentials/configuration remain owner-managed. None of this is a permanent guarantee: recheck the affected flows after each change. An existing admin is already bootstrapped; do not run first-admin setup again or recreate/reset this project.
 

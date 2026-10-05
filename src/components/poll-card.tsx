@@ -84,7 +84,7 @@ export function PollCard({
   const closed = forcedClosed || remaining.closed;
   const total = value.options.reduce((sum, o) => sum + o.votes, 0);
   return (
-    <section className="poll-card" aria-label="পোল">
+    <section className="poll-card" role="group" aria-label="পোল">
       <div className="poll-options" role="group" aria-label="পোলের উত্তর">
         {value.options.map((option) => {
           const percent = total ? Math.round((option.votes / total) * 100) : 0;

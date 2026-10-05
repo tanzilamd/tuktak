@@ -36,6 +36,12 @@ async function theme(page: Page, value: string) {
     document.documentElement.dataset.theme = t;
   }, value);
   await page.evaluate(() => document.fonts.ready);
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .filter((animation) => animation instanceof CSSTransition)
+      .every((animation) => animation.playState === "finished"),
+  );
 }
 async function noOverflow(page: Page) {
   expect(
@@ -405,6 +411,43 @@ test("current public names and role badges propagate to profiles, posts, replies
     sql(
       `delete from posts where id in('${pid}','${qid}');delete from notifications where id='${nid}';update profiles set display_name='${name}' where id='${me}'`,
     );
+  }
+});
+
+test("multiple voted polls remain accessible groups in the feed in both themes", async ({
+  page,
+}) => {
+  const ids = [randomUUID(), randomUUID()];
+  sql(
+    ids
+      .map(
+        (id, index) =>
+          `insert into posts(id,author_id,body) values('${id}','${other}','একসঙ্গে পোল ${index}');insert into polls(post_id,expires_at) values('${id}',now()+interval '1 day');insert into poll_options(post_id,position,body) values('${id}',1,'চা'),('${id}',2,'কফি');insert into poll_votes(post_id,user_id,option_id) select '${id}','${me}',id from poll_options where post_id='${id}' and position=1`,
+      )
+      .join(";"),
+  );
+  try {
+    await login(page);
+    await expect(page.locator(".poll-card")).toHaveCount(2);
+    await expect(
+      page.getByRole("region", { name: "পোল", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("group", { name: "পোল", exact: true }),
+    ).toHaveCount(2);
+    await expect(page.locator(".poll-option.selected")).toHaveCount(2);
+    for (const mode of ["light", "dark"])
+      for (const width of [320, 360, 768, 1280]) {
+        await page.setViewportSize({ width, height: 800 });
+        await theme(page, mode);
+        await noOverflow(page);
+        expect(
+          (await new AxeBuilder({ page }).include(".main-column").analyze())
+            .violations,
+        ).toEqual([]);
+      }
+  } finally {
+    sql(`delete from posts where id in('${ids[0]}','${ids[1]}')`);
   }
 });
 
