@@ -42,45 +42,49 @@ export function Navigation({ viewer }: { viewer: Viewer | null }) {
           <span className="brand-dot">✦</span>
         </Link>
         <p className="brand-tagline">কথা জমাইও না।</p>
-        <nav aria-label="প্রধান নেভিগেশন" className="desktop-nav">
-          {items.map(({ href, label, Icon }) => (
-            <Link
-              key={label}
-              className={`nav-item ${path === href ? "active" : ""}`}
-              href={href}
-              aria-label={
-                href === "/notifications" ? notificationLabel(count) : undefined
-              }
-              aria-current={path === href ? "page" : undefined}
-            >
-              <span className="nav-icon">
-                <Icon size={21} />
-                {href === "/notifications" && count > 0 && (
-                  <span className="notification-badge" aria-hidden="true">
-                    {unreadLabel(count)}
-                  </span>
-                )}
-              </span>
-              {label}
-              {path === href && <span className="nav-dot" />}
-            </Link>
-          ))}
-          {viewer && (
-            <Link
-              className={`nav-item ${path.startsWith("/settings") ? "active" : ""}`}
-              href="/settings"
-            >
-              <Settings size={21} />
-              সেটিংস
-            </Link>
-          )}
-          {viewer && viewer.role !== "user" && (
-            <Link className="nav-item" href="/moderation">
-              <Shield size={21} />
-              আড্ডা সামলাই
-            </Link>
-          )}
-        </nav>
+        <div className="sidebar-middle">
+          <nav aria-label="প্রধান নেভিগেশন" className="desktop-nav">
+            {items.map(({ href, label, Icon }) => (
+              <Link
+                key={label}
+                className={`nav-item ${path === href ? "active" : ""}`}
+                href={href}
+                aria-label={
+                  href === "/notifications"
+                    ? notificationLabel(count)
+                    : undefined
+                }
+                aria-current={path === href ? "page" : undefined}
+              >
+                <span className="nav-icon">
+                  <Icon size={21} />
+                  {href === "/notifications" && count > 0 && (
+                    <span className="notification-badge" aria-hidden="true">
+                      {unreadLabel(count)}
+                    </span>
+                  )}
+                </span>
+                {label}
+                {path === href && <span className="nav-dot" />}
+              </Link>
+            ))}
+            {viewer && (
+              <Link
+                className={`nav-item ${path.startsWith("/settings") ? "active" : ""}`}
+                href="/settings"
+              >
+                <Settings size={21} />
+                সেটিংস
+              </Link>
+            )}
+            {viewer && viewer.role !== "user" && (
+              <Link className="nav-item" href="/moderation">
+                <Shield size={21} />
+                আড্ডা সামলাই
+              </Link>
+            )}
+          </nav>
+        </div>
         <Link
           className="button button-primary sidebar-compose"
           href={viewer ? "/compose" : "/signup"}

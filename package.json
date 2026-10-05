@@ -16,7 +16,7 @@
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
     "db:stop": "supabase stop",
-    "db:test": "vitest run tests/database.test.ts tests/engagement-database.test.ts tests/migrations.test.ts tests/admin-bootstrap.test.ts",
+    "db:test": "vitest run tests/database.test.ts tests/engagement-database.test.ts tests/migrations.test.ts tests/admin-bootstrap.test.ts tests/public-identity.test.ts",
     "local:start": "bash scripts/local/start.sh",
     "local:stop": "docker compose -p tuktak-test -f scripts/local/compose.yml stop"
   },

@@ -2,6 +2,7 @@ export type Profile = {
   id: string;
   username: string;
   display_name: string;
+  is_admin?: boolean;
   bio: string;
   education: string;
   institution: string | null;
@@ -15,6 +16,7 @@ export type Profile = {
   created_at: string;
 };
 export type PostStats = {
+  author_is_admin?: boolean;
   reaction_counts: Record<string, number>;
   current_reaction: string | null;
   comment_count: number;
@@ -33,7 +35,7 @@ export type QuotePreview = {
   created_at: string;
   profiles: Pick<
     Profile,
-    "id" | "username" | "display_name" | "accent" | "status"
+    "id" | "username" | "display_name" | "accent" | "status" | "is_admin"
   >;
   has_poll: boolean;
 };

@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import Link from "next/link";
+import { AdminBadge } from "./admin-badge";
 import { PostCard } from "./post-card";
 import { Composer, Mutation, Result } from "./forms";
 import { Timestamp } from "./timestamp";
@@ -129,7 +130,10 @@ export function Discussion({
                     >
                       <Avatar profile={c.profiles} />
                       <span>
-                        <b>{c.profiles.display_name}</b>
+                        <b>
+                          {c.profiles.display_name}
+                          <AdminBadge admin={c.profiles.is_admin} />
+                        </b>
                         <small>
                           @{c.profiles.username} ·{" "}
                           <Timestamp value={c.created_at} />
@@ -204,6 +208,7 @@ export function Discussion({
                           <Link
                             className="small muted"
                             href={`/report?type=comment&id=${c.id}`}
+                            prefetch={false}
                           >
                             রিপোর্ট করি
                           </Link>

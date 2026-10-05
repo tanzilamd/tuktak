@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
+import { AdminBadge } from "./admin-badge";
 import { useRouter } from "next/navigation";
 import { markNotificationsRead, openInbox } from "@/app/actions";
 import {
@@ -180,7 +181,10 @@ export function NotificationList() {
                         void read(group.map((entry) => entry.id));
                     }}
                   >
-                    <b>{n.profiles.display_name}</b>
+                    <b>
+                      {n.profiles.display_name}
+                      <AdminBadge admin={n.profiles.is_admin} />
+                    </b>
                     {group.length > 1
                       ? ` এবং আরও ${bn(group.length - 1)} জন`
                       : ""}

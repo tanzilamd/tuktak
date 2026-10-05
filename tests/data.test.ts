@@ -5,6 +5,9 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase", () => ({ db: dbMock }));
 import {
   feed,
+  viewer,
+  people,
+  getProfile,
   getPost,
   relationships,
   unreadNotificationCount,
@@ -188,5 +191,44 @@ describe("bounded unread badge query", () => {
   it("does not query notification data for a guest", async () => {
     dbMock.mockResolvedValue(null);
     expect(await unreadNotificationCount()).toBe(0);
+  });
+});
+
+describe("current public identity reads", () => {
+  it("uses live profile names rather than signup Auth metadata and adds no feed role round trip", async () => {
+    const { instance } = client();
+    instance.auth.getUser.mockResolvedValue({
+      data: {
+        user: {
+          id: demoProfiles[0].id,
+          user_metadata: { display_name: "stale signup name", role: "admin" },
+        },
+      },
+    });
+    expect((await viewer())?.profile).toMatchObject({
+      display_name: demoProfiles[0].display_name,
+      is_admin: false,
+    });
+    await feed();
+    expect(instance.rpc).toHaveBeenCalledTimes(1);
+    expect(instance.rpc.mock.calls[0][0]).toBe("post_stats");
+  });
+  it("batches identity for discovery instead of reading a role per displayed profile", async () => {
+    const rows = demoProfiles.slice(0, 3);
+    const rpc = vi.fn().mockResolvedValue({ data: [rows[0].id], error: null });
+    dbMock.mockResolvedValue({ from: vi.fn(() => query(rows)), rpc });
+    const result = await people();
+    expect(result.map((p) => p.is_admin)).toEqual([true, false, false]);
+    expect(rpc).toHaveBeenCalledExactlyOnceWith("public_admin_ids", {
+      ids: rows.map((p) => p.id),
+    });
+  });
+  it("does not query roles for an empty discovery result or a missing profile", async () => {
+    const rpc = vi.fn();
+    dbMock.mockResolvedValue({ from: vi.fn(() => query([])), rpc });
+    expect(await people()).toEqual([]);
+    dbMock.mockResolvedValue({ from: vi.fn(() => query(null)), rpc });
+    expect(await getProfile("missing")).toBeUndefined();
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

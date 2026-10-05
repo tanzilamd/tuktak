@@ -4,6 +4,7 @@ import { ArrowUpRight, MessageCircle, Smile } from "lucide-react";
 import { feed, viewer, socialRevision } from "@/lib/data";
 import { configured } from "@/lib/supabase";
 import { BRAND, questionOfDay } from "@/lib/config";
+import { MobileTopics } from "@/components/mobile-topics";
 import { HomeFeed } from "@/components/home-feed";
 import type { FeedMode } from "@/lib/types";
 export const metadata = publicMetadata("/", "আড্ডা");
@@ -91,6 +92,7 @@ export default async function Home({
       </section>
       <HomeFeed
         key={socialRevision([v, mode, params.before, posts])}
+        mobileTopics={<MobileTopics />}
         initialPosts={posts}
         initialMode={mode as FeedMode}
         initialBefore={params.before}

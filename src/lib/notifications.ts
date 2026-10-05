@@ -9,7 +9,7 @@ export type Notification = {
   created_at: string;
   profiles: Pick<
     Profile,
-    "id" | "username" | "display_name" | "accent" | "status"
+    "id" | "username" | "display_name" | "accent" | "status" | "is_admin"
   >;
 };
 export function notificationGroups(

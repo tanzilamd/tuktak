@@ -231,7 +231,7 @@ test("card is compact between composer and tabs, accessible in both themes at fo
   await opportunity(page);
   await expect(page.locator(".install-card")).toBeVisible();
   expect(
-    await page.locator(".composer + .install-card + .feed-tabs").count(),
+    await page.locator(".composer + .install-card ~ .feed-tabs").count(),
   ).toBe(1);
   for (const width of [320, 360, 768, 1280])
     for (const theme of ["light", "dark"]) {
@@ -431,7 +431,7 @@ test("authenticated desktop Home puts tabs directly after composer in both theme
   await opportunity(page);
   await expect(page.locator(".install-card")).toHaveCount(0);
   // The redirect can stream Home before React removes its temporary markers.
-  await expect(page.locator(".composer + .feed-tabs")).toHaveCount(1);
+  await expect(page.locator(".composer ~ .feed-tabs")).toHaveCount(1);
   for (const theme of ["light", "dark"]) {
     await page.evaluate((t) => {
       document.documentElement.dataset.theme = t;

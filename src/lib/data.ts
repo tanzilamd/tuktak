@@ -36,7 +36,7 @@ export const viewer = cache(async (): Promise<Viewer | null> => {
     throw new Error("Account lookup failed");
   return {
     id: user.id,
-    profile: profile as Profile,
+    profile: { ...profile, is_admin: role.role === "admin" } as Profile,
     role: role.role,
     suspended: role.suspended,
   };
@@ -135,7 +135,20 @@ async function withStats(posts: PostRow[]): Promise<Post[]> {
   });
   const stats = checked(data, error) as Record<string, PostStats>;
   // Visibility/deletion may change between the row query and the aggregate RPC.
-  return posts.flatMap((p) => (stats[p.id] ? [{ ...p, ...stats[p.id] }] : []));
+  return posts.flatMap((p) =>
+    stats[p.id]
+      ? [
+          {
+            ...p,
+            ...stats[p.id],
+            profiles: {
+              ...p.profiles,
+              is_admin: stats[p.id].author_is_admin ?? false,
+            },
+          },
+        ]
+      : [],
+  );
 }
 export const getPost = cache(async (id: string) => {
   const client = await db();
@@ -148,6 +161,15 @@ export const getPost = cache(async (id: string) => {
   const post = checked(data, error) as unknown as PostRow | null;
   return post ? (await withStats([post]))[0] : undefined;
 });
+async function publicIdentity(profiles: Profile[]): Promise<Profile[]> {
+  if (!profiles.length) return [];
+  const client = (await db())!;
+  const { data, error } = await client.rpc("public_admin_ids", {
+    ids: [...new Set(profiles.map((p) => p.id))].slice(0, 200),
+  });
+  const admins = new Set(checked(data, error) as string[]);
+  return profiles.map((p) => ({ ...p, is_admin: admins.has(p.id) }));
+}
 export const getProfile = cache(async (username: string) => {
   const client = await db();
   if (!client) return demoProfiles.find((p) => p.username === username);
@@ -156,7 +178,8 @@ export const getProfile = cache(async (username: string) => {
     .select(PUBLIC_PROFILE)
     .eq("username", username.toLowerCase())
     .maybeSingle();
-  return checked(data, error) as Profile | undefined;
+  const profile = checked(data, error) as Profile | null;
+  return profile ? (await publicIdentity([profile]))[0] : undefined;
 });
 export async function comments(
   id: string,
@@ -206,7 +229,7 @@ export async function people(query = ""): Promise<Profile[]> {
     );
   }
   const { data, error } = await q;
-  return checked(data, error) as Profile[];
+  return publicIdentity(checked(data, error) as Profile[]);
 }
 export const topics = cache(
   async (): Promise<{ tag: string; count: number }[]> => {
@@ -256,8 +279,10 @@ export async function followList(id: string, kind: "followers" | "following") {
     .select(`profiles!follows_${other}_fkey(${PUBLIC_PROFILE})`)
     .eq(column, id)
     .limit(100);
-  return (checked(data, error) as unknown as { profiles: Profile }[]).map(
-    (p) => p.profiles,
+  return publicIdentity(
+    (checked(data, error) as unknown as { profiles: Profile }[]).map(
+      (p) => p.profiles,
+    ),
   );
 }
 export async function privateSettings() {

@@ -1,5 +1,11 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Sparkles } from "lucide-react";
@@ -20,12 +26,14 @@ export function HomeFeed({
   initialBefore = "",
   viewer,
   configured,
+  mobileTopics,
 }: {
   initialPosts: Post[];
   initialMode: FeedMode;
   initialBefore?: string;
   viewer: Viewer | null;
   configured: boolean;
+  mobileTopics?: ReactNode;
 }) {
   const params = useSearchParams();
   const mode: FeedMode =
@@ -196,6 +204,7 @@ export function HomeFeed({
         />
       )}
       <InstallCard />
+      {mobileTopics}
       <nav className="feed-tabs" aria-label="আড্ডার ধরন">
         <Link
           href="/"

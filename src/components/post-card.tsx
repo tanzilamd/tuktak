@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AdminBadge } from "./admin-badge";
 import {
   MessageCircle,
   MoreHorizontal,
@@ -69,6 +70,9 @@ export function PostCard({
             <span>
               <b>
                 {post.profiles.display_name}
+                <AdminBadge
+                  admin={stats.author_is_admin ?? post.profiles.is_admin}
+                />
                 <span className="person-status">{post.profiles.status}</span>
               </b>
               <small>
@@ -153,7 +157,10 @@ export function PostCard({
                   </>
                 ) : (
                   <>
-                    <Link href={`/report?type=post&id=${post.id}`}>
+                    <Link
+                      href={`/report?type=post&id=${post.id}`}
+                      prefetch={false}
+                    >
                       রিপোর্ট করি
                     </Link>
                     <Mutation
@@ -328,7 +335,8 @@ export function PersonCard({
         <Avatar profile={profile} />
         <span>
           <b>
-            {profile.display_name} {profile.status}
+            {profile.display_name}
+            <AdminBadge admin={profile.is_admin} /> {profile.status}
           </b>
           <small>@{profile.username}</small>
         </span>

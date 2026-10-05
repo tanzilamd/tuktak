@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AdminBadge } from "./admin-badge";
 import type { QuotePreview } from "@/lib/types";
 
 export function QuoteCard({
@@ -15,7 +16,10 @@ export function QuoteCard({
             className="small"
             prefetch={false}
           >
-            <b>{quote.profiles.display_name}</b>{" "}
+            <b>
+              {quote.profiles.display_name}
+              <AdminBadge admin={quote.profiles.is_admin} />
+            </b>{" "}
             <span className="muted">@{quote.profiles.username}</span>
           </Link>
           <Link

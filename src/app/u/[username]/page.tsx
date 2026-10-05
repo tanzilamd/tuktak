@@ -1,3 +1,4 @@
+import { AdminBadge } from "@/components/admin-badge";
 import { publicMetadata } from "@/lib/metadata";
 import { charCount } from "@/lib/config";
 import Link from "next/link";
@@ -75,7 +76,10 @@ export default async function Page({
               </Link>
             )}
           </div>
-          <h1>{p.display_name}</h1>
+          <h1>
+            {p.display_name}
+            <AdminBadge admin={p.is_admin} />
+          </h1>
           <p className="username">@{p.username}</p>
           {p.bio && <p className="profile-bio">{p.bio}</p>}
           <div className="profile-facts">
@@ -101,7 +105,9 @@ export default async function Page({
             <details className="safety-options">
               <summary>নিরাপত্তা ও অপশন</summary>
               <div>
-                <Link href={`/report?type=user&id=${p.id}`}>রিপোর্ট করি</Link>
+                <Link href={`/report?type=user&id=${p.id}`} prefetch={false}>
+                  রিপোর্ট করি
+                </Link>
                 <Mutation
                   action="mute"
                   values={{ id: p.id, enabled: true }}
