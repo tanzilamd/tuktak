@@ -1,5 +1,11 @@
 # Mobile/tablet PWA targeting and latency audit
 
+## Phase 2 community read checkpoint — 6 October 2026 (Asia/Dhaka)
+
+`communityPublic()` is request-scoped React caching, shared by Home, `topics()` (mobile/Discover/right rail) and admin overview. Local ignored fetch instrumentation recorded one `community_public` and one `post_stats` RPC for a complete guest Home render; there was no separate `popular_topics` HTTP call. No global authenticated cache, polling, N+1 role/content read or social API round trip is added. The server snapshot returns one question/hint/banner, at most 40 moods and six merged featured/organic topics. Admin lists return 50 rows plus a sentinel, never whole history; dashboard audit is five rows and counts cap at 1,000.
+
+Ten local `EXPLAIN ANALYZE` samples after a buffer warm-up (separate SQL sessions, small changing fictional fixtures) gave median DB execution **6.958 ms** for the retained organic `popular_topics()` versus **14.968 ms** for the new complete `community_public()` snapshot. The latter performs the original organic read plus bounded community selection/curation. This is about 8 ms extra local DB work, not an extra HTTP request, and is not a production percentile, physical Bangladesh network measurement or speed-improvement claim. Existing feeds/stats/optimistic caches and bom1/Mumbai configuration are unchanged. Full browser/query regression and production checks are recorded separately in VALIDATION.md; no paid infrastructure or speculative optimization is introduced.
+
 Audit: 5 October 2026, Asia/Dhaka. Baseline production SHA: `c1949e77e9788c938a3ce356a6f33b380aba6d10`.
 
 ## Scope and PWA behavior

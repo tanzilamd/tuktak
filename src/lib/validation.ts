@@ -9,7 +9,6 @@ import {
   ACCENTS,
   EDUCATION,
   HOBBIES,
-  MOODS,
   REACTIONS,
   REPORT_REASONS,
   RESERVED,
@@ -101,7 +100,9 @@ export const commandSchemas = {
   post: z
     .object({
       body: postBody,
-      mood: z.union([z.literal(""), z.enum(MOODS)]),
+      mood: z
+        .string()
+        .refine((v) => charCount(v) <= 60, "মুড সর্বোচ্চ ৬০ অক্ষর।"),
       quote_id: id.optional(),
       poll_options: z
         .array(z.string().trim())

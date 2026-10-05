@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Timestamp } from "./timestamp";
 import type { AuditEntry, StaffFilters } from "@/lib/staff";
+import { COMMUNITY_LABELS, type CommunityKind } from "@/lib/community";
 
 export const STAFF_ACTIONS: Record<string, string> = {
   dismiss: "বন্ধ করা",
@@ -10,6 +11,11 @@ export const STAFF_ACTIONS: Record<string, string> = {
   unsuspend: "ফিরিয়ে আনা",
   role: "দায়িত্ব বদল",
   bootstrap_admin: "অ্যাডমিন দায়িত্ব",
+  community_save: "কনটেন্ট রাখা",
+  community_delete: "কনটেন্ট সরানো",
+  community_toggle: "কনটেন্টের অবস্থা বদল",
+  community_pin: "আজকের প্রশ্ন বাছাই",
+  community_release: "স্বয়ংক্রিয় প্রশ্ন বাছাই",
 };
 export function StaffSearch({
   filters,
@@ -92,7 +98,8 @@ export function StaffAudit({ entries }: { entries: AuditEntry[] }) {
       {entries.map((a) => (
         <div className="audit-row" key={a.id}>
           <span>
-            {STAFF_ACTIONS[a.action] ?? a.action} · {a.target_type}
+            {STAFF_ACTIONS[a.action] ?? a.action} ·{" "}
+            {COMMUNITY_LABELS[a.target_type as CommunityKind] ?? a.target_type}
           </span>
           <span>
             {a.actor_name ? (

@@ -175,6 +175,8 @@ export function Composer({
   standalone = false,
   interaction,
   disabled = false,
+  moods = MOODS,
+  placeholder = "আজকের আজাইরা ভাবনা কী?",
 }: {
   prompt?: string;
   replyTo?: string;
@@ -183,6 +185,8 @@ export function Composer({
   standalone?: boolean;
   interaction?: InteractionCallbacks;
   disabled?: boolean;
+  moods?: readonly string[];
+  placeholder?: string;
 }) {
   const fieldId = useId();
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -279,9 +283,7 @@ export function Composer({
         readOnly={pending}
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder={
-          replyTo ? "প্রথম কথাটা তুমি বলবে?" : "আজকের আজাইরা ভাবনা কী?"
-        }
+        placeholder={replyTo ? "প্রথম কথাটা তুমি বলবে?" : placeholder}
         rows={replyTo ? 2 : 3}
         required={!quote}
         aria-describedby={`${fieldId}-count`}
@@ -399,7 +401,12 @@ export function Composer({
               onChange={(e) => setMood(e.target.value)}
             >
               <option value="">আজকে যেমন</option>
-              {MOODS.map((m) => (
+              {mood && !moods.includes(mood) && (
+                <option value={mood} disabled>
+                  {mood} · এখন বন্ধ
+                </option>
+              )}
+              {moods.map((m) => (
                 <option key={m}>{m}</option>
               ))}
             </select>

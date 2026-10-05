@@ -4,10 +4,10 @@ import type { ZodType } from "zod";
 import type { ActionState } from "@/lib/types";
 import { validationFailure } from "@/lib/form-errors";
 const ErrorsContext = createContext<Record<string, string>>({});
-export function FieldError({ name }: { name: string }) {
+export function FieldError({ name, id }: { name: string; id?: string }) {
   const error = use(ErrorsContext)[name];
   return error ? (
-    <small id={`error-${name}`} className="field-error">
+    <small id={id ?? `error-${name}`} className="field-error">
       {error}
     </small>
   ) : null;
@@ -21,12 +21,14 @@ export function FeedbackForm({
   input = (f) => Object.fromEntries(f),
   children,
   onErrors,
+  fieldMessages = {},
   ...props
 }: {
   state: ActionState;
   schema: ZodType;
   input?: (form: FormData) => unknown;
   onErrors?: (errors: Record<string, string>) => void;
+  fieldMessages?: Record<string, string>;
 } & Omit<React.ComponentProps<"form">, "onSubmit" | "onInvalid">) {
   const ref = useRef<HTMLFormElement>(null);
   const focusErrorsRef = useRef(true);
@@ -84,7 +86,8 @@ export function FeedbackForm({
           );
           const errors = parsed.success
             ? {}
-            : (validationFailure(parsed.error).fieldErrors ?? {});
+            : (validationFailure(parsed.error, fieldMessages).fieldErrors ??
+              {});
           // Only update already displayed errors; typing must not reveal untouched fields.
           const fieldErrors = Object.fromEntries(
             Object.keys(state.fieldErrors)
@@ -105,7 +108,7 @@ export function FeedbackForm({
           focusErrorsRef.current = !parsed.success;
           if (!parsed.success) {
             event.preventDefault();
-            setLocal(validationFailure(parsed.error));
+            setLocal(validationFailure(parsed.error, fieldMessages));
           } else setLocal(null);
         }}
       >

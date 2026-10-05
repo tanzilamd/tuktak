@@ -3,6 +3,7 @@ import { cache } from "react";
 import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
 import { db } from "./supabase";
+import { communityPublic } from "./community-data";
 import { loginHref } from "./config";
 import { demoPosts, demoProfiles } from "./demo";
 import type { Profile, Post, PostStats, Comment, Viewer } from "./types";
@@ -239,8 +240,7 @@ export const topics = cache(
   async (): Promise<{ tag: string; count: number }[]> => {
     const client = await db();
     if (client) {
-      const { data, error } = await client.rpc("popular_topics");
-      return checked(data, error);
+      return (await communityPublic()).topics;
     }
     const posts = await feed();
     const counts = new Map<string, number>();

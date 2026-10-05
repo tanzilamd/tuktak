@@ -2,6 +2,7 @@ import { getPost, requireViewer } from "@/lib/data";
 import { Composer } from "@/components/forms";
 import { z } from "zod";
 import { notFound } from "next/navigation";
+import { communityPublic } from "@/lib/community-data";
 export const metadata = { title: "বলে ফেলি", robots: { index: false } };
 export default async function Page({
   searchParams,
@@ -20,6 +21,7 @@ export default async function Page({
       : undefined
     : undefined;
   if (p.quote && (!source || (source.is_quote && !source.quote))) notFound();
+  const community = await communityPublic();
   const quote = source
     ? source.is_quote
       ? source.quote!
@@ -40,6 +42,8 @@ export default async function Page({
         </div>
       </div>
       <Composer
+        moods={community.moods}
+        placeholder={community.prompt ?? ""}
         prompt={Array.from(p.prompt ?? "")
           .slice(0, 240)
           .join("")}

@@ -13,7 +13,12 @@ export default async function Layout({
         <Link href="/moderation/reports">রিপোর্ট</Link>
         <Link href="/moderation/suspended">স্থগিত</Link>
         <Link href="/moderation/audit">ইতিহাস</Link>
-        {v.role === "admin" && <Link href="/moderation/team">দল পরিচালনা</Link>}
+        {v.role === "admin" && (
+          <>
+            <Link href="/moderation/content/questions">কনটেন্ট</Link>
+            <Link href="/moderation/team">দল পরিচালনা</Link>
+          </>
+        )}
       </nav>
       {children}
     </>

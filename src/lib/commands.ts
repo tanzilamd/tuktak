@@ -5,6 +5,12 @@ import { commandSchemas } from "./validation";
 import { validationFailure } from "./form-errors";
 import type { ActionState } from "./types";
 import type { Notification } from "./notifications";
+import {
+  communityInput,
+  COMMUNITY_FIELD_MESSAGES,
+  communityCommandSchemas,
+} from "./community";
+const schemas = { ...commandSchemas, ...communityCommandSchemas };
 const fail = (message: string): ActionState => ({ ok: false, message });
 export async function executeCommand(form: FormData): Promise<
   ActionState & {
@@ -14,14 +20,18 @@ export async function executeCommand(form: FormData): Promise<
   }
 > {
   const action = String(form.get("action"));
-  const schema = commandSchemas[action as keyof typeof commandSchemas];
+  const schema = schemas[action as keyof typeof schemas];
   if (!schema) return fail("অনুরোধটি সঠিক নয়।");
-  const raw: Record<string, unknown> = Object.fromEntries(form.entries());
+  const raw: Record<string, unknown> =
+    action === "community_save"
+      ? communityInput(form)
+      : Object.fromEntries(form.entries());
   for (const name of [
     "enabled",
     "institution_visible",
     "discoverable",
     "onboarding",
+    "active",
   ]) {
     if (form.has(name))
       raw[name] = form.get(name) === "true" || form.get(name) === "on";
@@ -44,7 +54,11 @@ export async function executeCommand(form: FormData): Promise<
     }
   }
   const parsed = schema.safeParse(raw);
-  if (!parsed.success) return validationFailure(parsed.error);
+  if (!parsed.success)
+    return validationFailure(
+      parsed.error,
+      action.startsWith("community_") ? COMMUNITY_FIELD_MESSAGES : undefined,
+    );
   const client = await db();
   if (!client)
     return fail("এই মুহূর্তে আড্ডায় যোগ দেওয়া যাচ্ছে না। একটু পরে চেষ্টা করো।");
@@ -53,6 +67,19 @@ export async function executeCommand(form: FormData): Promise<
     payload: parsed.data,
   });
   if (error) {
+    if (error.message.includes("invalid_mood"))
+      return fail(
+        "এই মুডটি এখন আর বেছে নেওয়া যাচ্ছে না। অন্য মুড দিয়ে চেষ্টা করো।",
+      );
+    if (
+      action.startsWith("community_") &&
+      error.message.includes("content_pool_full")
+    )
+      return fail(
+        "তালিকা ভরে গেছে। অপ্রয়োজনীয় পুরোনো লেখা সরিয়ে আবার চেষ্টা করো।",
+      );
+    if (action === "community_save" && error.code === "23505")
+      return fail("এই মুড বা বিষয়টি তালিকায় আগেই আছে। সেটিই সম্পাদনা করো।");
     if (error.message.includes("edit_expired"))
       return fail("পোস্ট দেওয়ার ১৫ মিনিট পরে আর সম্পাদনা করা যায় না।");
     if (error.message.includes("poll_closed"))

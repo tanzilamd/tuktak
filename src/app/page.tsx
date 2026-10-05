@@ -3,7 +3,9 @@ import Link from "next/link";
 import { ArrowUpRight, MessageCircle, Smile } from "lucide-react";
 import { feed, viewer, socialRevision } from "@/lib/data";
 import { configured } from "@/lib/supabase";
-import { BRAND, questionOfDay } from "@/lib/config";
+import { BRAND } from "@/lib/config";
+import { communityPublic } from "@/lib/community-data";
+import { CommunityAnnouncement } from "@/components/community-announcement";
 import { MobileTopics } from "@/components/mobile-topics";
 import { HomeFeed } from "@/components/home-feed";
 import type { FeedMode } from "@/lib/types";
@@ -18,8 +20,11 @@ export default async function Home({
   const mode = ["following", "institution"].includes(params.feed ?? "")
     ? params.feed
     : "all";
-  const posts = await feed({ mode, before: params.before });
-  const question = questionOfDay();
+  const [posts, community] = await Promise.all([
+    feed({ mode, before: params.before }),
+    communityPublic(),
+  ]);
+  const question = community.question;
   return (
     <>
       <div className="page-top">
@@ -41,6 +46,12 @@ export default async function Home({
           }).format(new Date())}
         </span>
       </div>
+      {community.announcement && (
+        <CommunityAnnouncement
+          key={`${community.announcement.id}:${community.announcement.updated_at}`}
+          announcement={community.announcement}
+        />
+      )}
       {!v && (
         <section className="welcome-card">
           <span className="eyebrow">
@@ -73,24 +84,28 @@ export default async function Home({
           </span>
         </section>
       )}
-      <section className="daily-question">
-        <div className="question-icon">
-          <MessageCircle size={22} />
-        </div>
-        <div>
-          <span className="eyebrow">
-            আজকের প্রশ্ন <span>· একটু ভাবি?</span>
-          </span>
-          <h2>{question}</h2>
-        </div>
-        <Link
-          href={`/compose?prompt=${encodeURIComponent(question + "\n")}`}
-          aria-label="আজকের প্রশ্নের উত্তর দিই"
-        >
-          উত্তর দিই <ArrowUpRight size={15} />
-        </Link>
-      </section>
+      {question && (
+        <section className="daily-question">
+          <div className="question-icon">
+            <MessageCircle size={22} />
+          </div>
+          <div>
+            <span className="eyebrow">
+              আজকের প্রশ্ন <span>· একটু ভাবি?</span>
+            </span>
+            <h2>{question}</h2>
+          </div>
+          <Link
+            href={`/compose?prompt=${encodeURIComponent(question + "\n")}`}
+            aria-label="আজকের প্রশ্নের উত্তর দিই"
+          >
+            উত্তর দিই <ArrowUpRight size={15} />
+          </Link>
+        </section>
+      )}
       <HomeFeed
+        moods={community.moods}
+        placeholder={community.prompt ?? ""}
         key={socialRevision([v, mode, params.before, posts])}
         mobileTopics={<MobileTopics />}
         initialPosts={posts}

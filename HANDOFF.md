@@ -223,6 +223,14 @@ The Home install card is promoted only on supported phones/tablets; desktop brow
 
 No production schema, secrets, roles, data or deployment is changed merely by local implementation/validation. Publishing requires task authorization under AGENTS. See VALIDATION for the exact current status.
 
+## Phase 2 schema-first rollout
+
+After complete regression/security acceptance, verify the eight hosted migration sources against committed history, then apply only `20261006000100_staff_console.sql` and `20261006000200_community_content.sql` with their exact native history records. Use a short lock timeout and bounded transaction; abort/roll back on a catalog, grant or data-preservation mismatch. Preserve original rows, roles, Auth configuration and secrets. Curated public defaults are part of the migration; never import fictional seeds/accounts. The retained legacy command accepts existing clients while the app is upgraded.
+
+Before pushing, confirm all 25 application tables enable RLS, community tables have no application-role direct access, internal helpers/legacy delegate are revoked, and only bounded safe public/admin RPCs are callable as intended. Check ordinary old-client post/mood behavior on the upgraded schema. Do not change production roles to test content access; use designated actual admin/normal QA accounts and local role transitions.
+
+Verify GitHub CI and Vercel separately, canonical health, staff Settings entry, moderation/report/suspension/team, all five editors, daily selection/pin release, historical moods, curated plus organic topics and one compact scheduled banner. Live content QA should use owned scoped entries, preferably inactive/future scheduled, and restore/remove only those entries. Do not silently replace an existing real question pin. Dismissal is local/revision-based. Content edits appear on the next authoritative read; there is no polling or PWA/Auth change.
+
 ## UI polish / public identity schema-first release
 
 The eighth migration, `20261005000500_public_admin_identity.sql`, was applied schema-first with its exact native hosted history record after verifying the seven existing sources and passing full regression evidence. All original data was unchanged inside the migration transaction. For a new environment, apply the entire ordered chain; for an existing one, apply only genuinely pending files. It replaces two read functions with additive boolean projections and adds a bounded visible-admin-ID read RPC. There are no table/data backfills, new role assignments, Auth changes or seed imports. Old clients safely ignore the additional JSON keys; existing command and read grants remain compatible.

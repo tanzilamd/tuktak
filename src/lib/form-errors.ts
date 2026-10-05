@@ -15,11 +15,17 @@ const messages: Record<string, string> = {
   status: "স্ট্যাটাস সর্বোচ্চ ৪০ অক্ষরে লিখো।",
   accent: "তালিকা থেকে তোমার রঙ বেছে নাও।",
 };
-export function validationFailure(error: ZodError): ActionState {
+export function validationFailure(
+  error: ZodError,
+  customMessages: Record<string, string> = {},
+): ActionState {
   const fieldErrors: Record<string, string> = {};
   for (const issue of error.issues) {
     const field = String(issue.path[0] ?? "");
-    if (field in messages && !fieldErrors[field])
+    if (field in customMessages && !fieldErrors[field])
+      fieldErrors[field] =
+        issue.code === "invalid_type" ? customMessages[field] : issue.message;
+    else if (field in messages && !fieldErrors[field])
       fieldErrors[field] =
         field === "username" && issue.code !== "invalid_type"
           ? issue.message

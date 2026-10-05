@@ -28,6 +28,8 @@ export function HomeFeed({
   viewer,
   configured,
   mobileTopics,
+  moods,
+  placeholder,
 }: {
   initialPosts: Post[];
   initialMode: FeedMode;
@@ -35,6 +37,8 @@ export function HomeFeed({
   viewer: Viewer | null;
   configured: boolean;
   mobileTopics?: ReactNode;
+  moods?: string[];
+  placeholder?: string;
 }) {
   const params = useSearchParams();
   const mode: FeedMode =
@@ -164,6 +168,8 @@ export function HomeFeed({
     <>
       {viewer && !viewer.suspended && (
         <Composer
+          moods={moods}
+          placeholder={placeholder}
           interaction={{
             start(form) {
               const id = `pending-${crypto.randomUUID()}`;
